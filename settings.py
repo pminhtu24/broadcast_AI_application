@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     INFINITY_URL: str
     VIETTEL_BASE_URL: str
     VIETTEL_API_KEY: SecretStr
-    VIETTEL_MODEL: str = "accounts/fireworks/models/gpt-oss-120b"
+    VIETTEL_MODEL: str
 
     class Config:
         env_file = ".env"
