@@ -19,7 +19,7 @@ embeddings = InfinityEmbeddings(
 graph_db = Neo4jGraph(
     url=settings.NEO4J_URI,
     username=settings.NEO4J_USERNAME,
-    password=settings.NEO4J_PASSWORD, # type: ignore[arg-type] 
+    password=settings.NEO4J_PASSWORD.get_secret_value(),
     refresh_schema=False,
 )
 
@@ -29,7 +29,7 @@ def _get_vector_store(retrieval_query: str) -> Neo4jVector:
         embedding=embeddings,
         url=settings.NEO4J_URI,
         username=settings.NEO4J_USERNAME,
-        password=settings.NEO4J_PASSWORD,
+        password=settings.NEO4J_PASSWORD.get_secret_value(),
         index_name="vector",
         node_label="Chunk",
         text_node_property="text",
