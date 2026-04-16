@@ -15,4 +15,5 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "infinity-emb[torch]==0.0.66",
     "langchain-community>=0.3.21",
+    "ragas>=0.4.3",
 ]
