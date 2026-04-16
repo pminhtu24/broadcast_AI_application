@@ -24,9 +24,11 @@ logging.getLogger("neo4j.notifications").setLevel(logging.ERROR)
 
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
+from openai import AsyncOpenAI
 
 from benchmark.retriever_adapter import Neo4jRetrieverAdapter, MODES
 from benchmark.dataset import get_test_cases
+from backend.app.config.settings import settings
 
 OUTPUT_DIR = "benchmark_results"
 
@@ -128,35 +130,38 @@ def run_benchmark(
 
     if include_ragas:
         from ragas import EvaluationDataset, evaluate
-        from openai import AsyncOpenAI
         from ragas.llms import llm_factory
-        from ragas.embeddings import embedding_factory
-        from ragas.metrics.collections.faithfulness import Faithfulness
-        from ragas.metrics.collections.context_recall import ContextRecall
-        from ragas.metrics.collections.context_precision import ContextPrecision
-        from ragas.metrics.collections.answer_relevancy import AnswerRelevancy
+        from ragas.embeddings.base import LangchainEmbeddingsWrapper
+        from ragas.metrics import (
+            Faithfulness,
+            ResponseRelevancy,
+            ContextPrecision,
+            ContextRecall,
+        )
+        from langchain_community.embeddings import InfinityEmbeddings
 
-        llm = get_llm()
         client = AsyncOpenAI(
             api_key=os.getenv("VIETTEL_API_KEY"),
             base_url=os.getenv("VIETTEL_BASE_URL"),
         )
         evaluator_llm = llm_factory(
             os.getenv("VIETTEL_MODEL", "openai/gpt-oss-120b"),
+            provider="openai",
             client=client,
         )
-        evaluator_embeddings = embedding_factory(
-            "openai",
-            model="text-embedding-ada-002",
-            client=client,
-            interface="modern",
+        evaluator_embeddings = LangchainEmbeddingsWrapper(
+            embeddings=InfinityEmbeddings(
+                model="models/Vietnamese_Embedding_v2",
+                infinity_api_url=settings.INFINITY_URL,
+            )
         )
         ragas_metrics = [
             Faithfulness(llm=evaluator_llm),
-            AnswerRelevancy(llm=evaluator_llm, embeddings=evaluator_embeddings),
+            ResponseRelevancy(llm=evaluator_llm, embeddings=evaluator_embeddings),
             ContextPrecision(llm=evaluator_llm),
             ContextRecall(llm=evaluator_llm),
         ]
+        llm = get_llm()
 
     for mode in modes:
         logger.info(f"\n--- Mode: {MODE_LABELS[mode]} ---")
