@@ -46,6 +46,7 @@ def get_llm():
         base_url=os.getenv("VIETTEL_BASE_URL"),
         model=os.getenv("VIETTEL_MODEL", "openai/gpt-oss-120b"),
         temperature=0.1,
+        max_tokens=2048
     )
 
 
@@ -148,6 +149,7 @@ def run_benchmark(
             os.getenv("VIETTEL_MODEL", "openai/gpt-oss-120b"),
             provider="openai",
             client=client,
+            max_tokens=2048
         )
         evaluator_embeddings = LangchainEmbeddingsWrapper(
             embeddings=InfinityEmbeddings(

@@ -1,8 +1,24 @@
 import time
 import sys
+import re
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Dict, Any
+
+logger = logging.getLogger(__name__)
+
+
+LUCENE_SPECIAL_CHARS = r'+\-&|!(){}[]^"~*?:\\/'
+
+
+def escape_lucene_query(query: str) -> str:
+    """Escape Lucene special characters for Neo4j fulltext search"""
+    result = query
+    for char in sorted(LUCENE_SPECIAL_CHARS, key=lambda x: x == "\\", reverse=True):
+        result = result.replace(char, f"\\{char}")
+    return result
+
 
 from langchain_neo4j import Neo4jGraph, Neo4jVector
 from langchain_community.embeddings import InfinityEmbeddings
@@ -96,7 +112,10 @@ class Neo4jRetrieverAdapter:
             RETURN node.text AS text
             LIMIT $limit
         """
-        rows = self.graph_db.query(cypher, {"keywords": query, "limit": self.top_k})
+        escaped_query = escape_lucene_query(query)
+        rows = self.graph_db.query(
+            cypher, {"keywords": escaped_query, "limit": self.top_k}
+        )
         return [r["text"] for r in rows] if rows else []
 
     def _graph_vector_search(self, query: str) -> List[str]:
@@ -172,7 +191,8 @@ class Neo4jRetrieverAdapter:
             RETURN node.text AS text, node.id AS chunk_id, score AS score
             LIMIT $limit
         """
-        rows = self.graph_db.query(cypher, {"keywords": query, "limit": 3})
+        escaped_query = escape_lucene_query(query)
+        rows = self.graph_db.query(cypher, {"keywords": escaped_query, "limit": 3})
         return (
             [
                 {
