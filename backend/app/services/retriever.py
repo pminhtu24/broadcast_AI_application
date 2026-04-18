@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 _embeddings_instance = None
 _graph_db_instance = None
+_vector_store_instances: Dict[str, Neo4jVector] = {}
 
 
 def get_embeddings() -> InfinityEmbeddings:
@@ -43,20 +44,24 @@ def get_graph_db() -> Neo4jGraph:
     return _graph_db_instance
 
 
-def _get_vector_store(retrieval_query: str) -> Neo4jVector:
-    embeddings = get_embeddings()
-    settings = get_settings()
-    return Neo4jVector.from_existing_index(
-        embedding=embeddings,
-        url=settings.NEO4J_URI,
-        username=settings.NEO4J_USERNAME,
-        password=settings.NEO4J_PASSWORD.get_secret_value(),
-        index_name="vector",
-        node_label="Chunk",
-        text_node_property="text",
-        embedding_node_property="embedding",
-        retrieval_query=retrieval_query,
-    )
+def get_vector_store(mode: str = CHAT_DEFAULT_MODE) -> Neo4jVector:
+    if mode not in _vector_store_instances:
+        config = CHAT_MODE_CONFIG_MAP[mode]
+        embeddings = get_embeddings()
+        settings = get_settings()
+        logger.info(f"Initializing Neo4jVector for mode: {mode}")
+        _vector_store_instances[mode] = Neo4jVector.from_existing_index(
+            embedding=embeddings,
+            url=settings.NEO4J_URI,
+            username=settings.NEO4J_USERNAME,
+            password=settings.NEO4J_PASSWORD.get_secret_value(),
+            index_name="vector",
+            node_label="Chunk",
+            text_node_property="text",
+            embedding_node_property="embedding",
+            retrieval_query=config["retrieval_query"],
+        )
+    return _vector_store_instances[mode]
 
 
 def vector_search(
@@ -64,8 +69,7 @@ def vector_search(
     mode: str = CHAT_DEFAULT_MODE,
     k: int = VECTOR_SEARCH_TOP_K,
 ) -> List[Dict]:
-    config = CHAT_MODE_CONFIG_MAP[mode]
-    store = _get_vector_store(config["retrieval_query"])
+    store = get_vector_store(mode)
     results = []
     try:
         docs_and_scores = store.similarity_search_with_score(question, k=k)
