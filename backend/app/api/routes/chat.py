@@ -35,9 +35,7 @@ async def chat(request: ChatRequest):
         # Run entire workflow
         result = invoke_graph(initial_state)
 
-        answer = (
-            result.get("answer") or "Xin lỗi, tôi không tìm thấy thông tin liên quan."
-        )
+        answer = result.get("answer") or "Xin lỗi, tôi không tìm thấy thông tin liên quan."
         citations_raw = result.get("citations", [])
         intent = result.get("intent") or "qa"
 
@@ -47,16 +45,12 @@ async def chat(request: ChatRequest):
                 filename=c.filename if hasattr(c, "filename") else c["filename"],
                 excerpt=c.excerpt if hasattr(c, "excerpt") else c["excerpt"],
                 score=c.score if hasattr(c, "score") else c["score"],
-                search_type=c.search_type
-                if hasattr(c, "search_type")
-                else c["search_type"],
+                search_type=c.search_type if hasattr(c, "search_type") else c["search_type"],
             )
             for c in citations_raw
         ]
 
-        logger.info(
-            f"[Chat] Done | session={session_id[:8]} | intent={intent} | citations={len(citations)}"
-        )
+        logger.info(f"[Chat] Done | session={session_id[:8]} | intent={intent} | citations={len(citations)}")
 
         return ChatResponse(
             answer=answer,
