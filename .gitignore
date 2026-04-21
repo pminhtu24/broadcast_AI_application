@@ -11,6 +11,8 @@ frontend/dist/
 .venv/
 __pycache__/
 
+node_modules/
+
 .vscode/
 CLAUDE.md
 benchmark_results/
