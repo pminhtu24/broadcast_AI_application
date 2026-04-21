@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, AsyncGenerator
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, BaseMessage
 from app.graph.state import ChatState, CitationSource
 from app.services.retriever import hybrid_retrieve, format_for_llm
@@ -36,12 +36,7 @@ def _build_messages_with_history(
 # Node 1: load_session
 # Load conversation history from Neo4j before starting the graph
 
-
 def load_session_node(state: ChatState) -> dict[str, Any]:
-    """
-    Load history from Neo4j theo session_id.
-    Nếu session mới → trả về list rỗng, không lỗi.
-    """
     session_id = state.get("session_id", "")
     if not session_id:
         return {"history": []}
@@ -52,7 +47,6 @@ def load_session_node(state: ChatState) -> dict[str, Any]:
 
 
 # Node 2: classify_intent
-
 
 def classify_intent_node(state: ChatState) -> dict[str, Any]:
     messages = state.get("messages", [])
@@ -78,12 +72,10 @@ def classify_intent_node(state: ChatState) -> dict[str, Any]:
         return {"intent": intent}
     except Exception as e:
         logger.error(f"[ClassifyIntent] Error: {e}")
-        # Fallback về qa thay vì crash
         return {"intent": "qa", "error": str(e)}
 
 
 # Node 3: retrieve
-
 
 def retrieve_node(state: ChatState) -> dict[str, Any]:
     messages = state.get("messages", [])
@@ -91,7 +83,6 @@ def retrieve_node(state: ChatState) -> dict[str, Any]:
 
     if not user_message:
         return {"retrieved_context": None, "citations": [], "error": "No user message"}
-
     try:
         chunks = hybrid_retrieve(user_message, top_k=5)
 
@@ -116,8 +107,9 @@ def retrieve_node(state: ChatState) -> dict[str, Any]:
         return {"retrieved_context": None, "citations": [], "error": str(e)}
 
 
-# Node 4: generate
-# Use history to let LLM understand the previous conversation context
+# ---------------------------------------------------------------------------
+# Node 4a: generate (sync — use for /api/chat)
+# ---------------------------------------------------------------------------
 
 
 def generate_node(state: ChatState) -> dict[str, Any]:
@@ -143,7 +135,7 @@ def generate_node(state: ChatState) -> dict[str, Any]:
         from app.config.constants import (
             CHAT_SYSTEM_TEMPLATE,
             CALCULATE_SYSTEM_TEMPLATE,
-        )
+        ) 
 
         llm = get_llm()
 
@@ -166,6 +158,36 @@ def generate_node(state: ChatState) -> dict[str, Any]:
         logger.error(f"[Generate] Error: {e}")
         return {"answer": None, "error": str(e)}
 
+# ---------------------------------------------------------------------------
+# Node 4b: generate_stream (async generator — use for /api/chat/stream)
+# called directly from route to yield token immediately when LLM returns,
+# without waiting for completion.
+# ---------------------------------------------------------------------------
+ 
+async def generate_stream(
+    user_message: str,
+    context: str,
+    intent: str,
+    history: list[ChatMessage],
+) -> AsyncGenerator[str, None]:
+    from app.config.constants import CHAT_SYSTEM_TEMPLATE, CALCULATE_SYSTEM_TEMPLATE
+    llm = get_llm()
+ 
+    if intent == "calculate":
+        system_prompt = CALCULATE_SYSTEM_TEMPLATE.replace("{context}", context)
+    else:
+        system_prompt = CHAT_SYSTEM_TEMPLATE.replace("{context}", context)
+ 
+    llm_messages = _build_messages_with_history(system_prompt, user_message, history)
+ 
+    try:
+        async for chunk in llm.astream(llm_messages):
+            token = chunk.content
+            if token:
+                yield token
+    except Exception as e:
+        logger.error(f"[GenerateStream] Error: {e}")
+        yield f"\n\n[Lỗi khi tạo câu trả lời: {e}]"
 
 # Node 5: save_session
 # Save new turn to Neo4j after generating the response
@@ -189,7 +211,6 @@ def save_session_node(state: ChatState) -> dict[str, Any]:
 
 
 # Node 6: format_response
-
 
 def format_response_node(state: ChatState) -> dict[str, Any]:
     answer = state.get("answer")
