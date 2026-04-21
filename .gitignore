@@ -1,0 +1,15 @@
+__pycache__
+.env
+.venv/
+.ruff_cache/
+.gitignore
+.vscode/
+models/
+.claude/
+.infinity_cache/
+CLAUDE.md
+docs/
+docker_command.txt
+tests/
+benchmark_results/
+.pytest_cache/
