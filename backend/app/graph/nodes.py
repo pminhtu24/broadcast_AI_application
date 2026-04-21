@@ -141,7 +141,6 @@ def generate_node(state: ChatState) -> dict[str, Any]:
         else:
             system_prompt = CHAT_SYSTEM_TEMPLATE.replace("{context}", context)
 
-        # Key fix: truyền history vào đây
         llm_messages = _build_messages_with_history(
             system_prompt, user_message, history
         )

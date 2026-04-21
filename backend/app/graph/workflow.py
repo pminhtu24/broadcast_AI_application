@@ -84,9 +84,6 @@ async def prepare_for_stream(state: dict) -> dict:
       - error     (if any)
  
     Route then call generate_stream() with this data to stream token.
-    Why not use invoke_graph() directly?
-    Because invoke_graph() runs generate_node always and blocks until done —
-    no room left to stream.
     """
     import asyncio
     from app.graph.nodes import (
