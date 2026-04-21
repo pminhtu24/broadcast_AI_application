@@ -1,4 +1,5 @@
-from app.graph.state import ChatState, CitationSource
+from app.graph.state import ChatState
+from app.schemas.chat import CitationSource
 from app.graph.nodes import (
     load_session_node,
     classify_intent_node,

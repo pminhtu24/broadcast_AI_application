@@ -1,14 +1,6 @@
 from typing import TypedDict, Annotated, List, Optional
 from langchain_core.messages import BaseMessage
-from pydantic import BaseModel
-from app.schemas.chat import ChatMessage
-
-
-class CitationSource(BaseModel):
-    filename: str
-    excerpt: str
-    score: float
-    search_type: str
+from app.schemas.chat import CitationSource, ChatMessage
 
 
 class ChatState(TypedDict):

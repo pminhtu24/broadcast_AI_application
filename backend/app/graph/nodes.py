@@ -1,11 +1,11 @@
 import logging
 from typing import Any, AsyncGenerator
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, BaseMessage
-from app.graph.state import ChatState, CitationSource
+from app.graph.state import ChatState
+from app.schemas.chat import CitationSource, ChatMessage
 from app.services.retriever import hybrid_retrieve, format_for_llm
 from app.services.llm import get_llm
 from app.services import session as session_service
-from app.schemas.chat import ChatMessage
 
 logger = logging.getLogger(__name__)
 
@@ -107,10 +107,7 @@ def retrieve_node(state: ChatState) -> dict[str, Any]:
         return {"retrieved_context": None, "citations": [], "error": str(e)}
 
 
-# ---------------------------------------------------------------------------
 # Node 4a: generate (sync — use for /api/chat)
-# ---------------------------------------------------------------------------
-
 
 def generate_node(state: ChatState) -> dict[str, Any]:
     messages = state.get("messages", [])
