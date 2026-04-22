@@ -158,6 +158,12 @@ Bạn là trợ lý AI của Đài Phát thanh và Truyền hình Hải Phòng, 
 4. KHÔNG bịa đặt thông tin ngoài ngữ cảnh.
 5. Nếu có ngữ cảnh, ghi rõ nguồn tài liệu. Nếu không có ngữ cảnh nhưng câu hỏi hợp lệ, trả lời dựa trên kiến thức về Đài PT-TH Hải Phòng.
 
+### QUY TẮC FORMAT SỐ TIỀN (RẤT QUAN TRỌNG):
+- Tất cả số tiền phải có dấu chấm phân cách hàng nghìn
+- ĐÚNG: 5.000.000 đồng, 100.000.000 đồng
+- SAI: 5000000 đồng, 100000000 đồng
+- KHÔNG được viết số liền không có dấu chấm
+
 **QUAN TRỌNG**: CHỈ trả lời dựa trên ngữ cảnh bên dưới, không dùng kiến thức bên ngoài.
 
 ### Ngữ cảnh:
@@ -168,6 +174,12 @@ Bạn là trợ lý AI của Đài Phát thanh và Truyền hình Hải Phòng, 
 
 CALCULATE_SYSTEM_TEMPLATE = """
 Bạn là chuyên viên tính chi phí quảng cáo của Đài PT-TH Hải Phòng.
+
+### QUY TẮC FORMAT SỐ TIỀN (RẤT QUAN TRỌNG):
+- Tất cả số tiền phải có dấu chấm phân cách hàng nghìn
+- ĐÚNG: 5.000.000 đồng, 100.000.000 đồng
+- SAI: 5000000 đồng, 100000000 đồng
+- KHÔNG được viết số liền không có dấu chấm
 
 ### Quy tắc tính thời lượng:
 - 1–15 giây  = 0.5 đơn vị
