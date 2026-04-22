@@ -1,13 +1,16 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 import clsx from "clsx";
 import type { ChatMessage } from "@/types";
 
 interface Props {
     message: ChatMessage;
+    onSuggestionClick?: (suggestion: string) => void;
 }
 
-export function Message({ message }: Props) {
+export function Message({ message, onSuggestionClick }: Props) {
     const isUser = message.role === "user";
 
     if (isUser) {
@@ -50,7 +53,8 @@ export function Message({ message }: Props) {
                 {message.content ? (
                     <>
                         <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
+                            remarkPlugins={[remarkGfm, remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
                             components={{
                                 p: ({ children }) => (
                                     <p className="mb-2 last:mb-0">{children}</p>
@@ -132,6 +136,26 @@ export function Message({ message }: Props) {
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Suggestions */}
+            {message.suggestions && message.suggestions.length > 0 && (
+                <div className="flex flex-col gap-1.5 max-w-[85%]">
+                    <span className="text-[11px] text-white/40 font-medium">
+                        Câu hỏi gợi ý
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                        {message.suggestions.map((s, i) => (
+                            <button
+                                key={i}
+                                className="px-3 py-1.5 rounded-full bg-surface-1 border border-border text-xs text-white/70 hover:text-white hover:border-accent/50 transition-colors cursor-pointer"
+                                onClick={() => onSuggestionClick?.(s)}
+                            >
+                                {s}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>

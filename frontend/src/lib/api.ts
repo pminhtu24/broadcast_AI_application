@@ -1,4 +1,4 @@
-import type { SSEEvent, CitationSource } from "@/types";
+import type { SSEEvent, CitationSource, ChatMessage, Session } from "@/types";
 
 const BASE = "/api";
 
@@ -6,6 +6,7 @@ export interface StreamCallbacks {
     onMeta: (intent: string, sessionId: string) => void;
     onToken: (token: string) => void;
     onCitations: (citations: CitationSource[]) => void;
+    onSuggestions: (suggestions: string[]) => void;
     onDone: () => void;
     onError: (message: string) => void;
 }
@@ -74,6 +75,9 @@ export function streamChat(
                             case "citations":
                                 callbacks.onCitations(event.data);
                                 break;
+                            case "suggestions":
+                                callbacks.onSuggestions(event.data);
+                                break;
                             case "done":
                                 callbacks.onDone();
                                 break;
@@ -101,4 +105,61 @@ export function streamChat(
  */
 export async function deleteSession(sessionId: string): Promise<void> {
     await fetch(`${BASE}/chat/${sessionId}`, { method: "DELETE" });
+}
+
+interface SessionResponse {
+    id: string;
+    updatedAt: string;
+    createdAt: string;
+}
+
+interface HistoryResponse {
+    messages: Array<{ role: string; content: string }>;
+}
+
+/**
+ * Lấy danh sách tất cả sessions từ Neo4j.
+ */
+export async function getSessions(): Promise<Session[]> {
+    const res = await fetch(`${BASE}/chat/sessions`);
+    if (!res.ok) throw new Error(`Failed to fetch sessions: ${res.status}`);
+    const data: { sessions: SessionResponse[] } = await res.json();
+
+    const sessionsWithMessages: Session[] = [];
+    for (const s of data.sessions) {
+        try {
+            const historyRes = await fetch(`${BASE}/chat/${s.id}/history`);
+            if (!historyRes.ok) continue;
+            const historyData: HistoryResponse = await historyRes.json();
+            const firstUserMessage = historyData.messages.find((m) => m.role === "user");
+            sessionsWithMessages.push({
+                id: s.id,
+                preview: firstUserMessage?.content.slice(0, 50) ?? "Cuộc trò chuyện",
+                createdAt: s.createdAt ? new Date(s.createdAt) : new Date(),
+                messages: historyData.messages.map((m, i) => ({
+                    id: `${s.id}-${i}`,
+                    role: m.role as "user" | "assistant",
+                    content: m.content,
+                })) as ChatMessage[],
+            });
+        } catch {
+            continue;
+        }
+    }
+
+    return sessionsWithMessages;
+}
+
+/**
+ * Lấy message history của một session.
+ */
+export async function getSessionHistory(sessionId: string): Promise<ChatMessage[]> {
+    const res = await fetch(`${BASE}/chat/${sessionId}/history`);
+    if (!res.ok) throw new Error(`Failed to fetch history: ${res.status}`);
+    const data: HistoryResponse = await res.json();
+    return data.messages.map((m, i) => ({
+        id: `${sessionId}-${i}`,
+        role: m.role as "user" | "assistant",
+        content: m.content,
+    }));
 }

@@ -6,10 +6,10 @@ import { useChat } from "@/hooks/useChat";
 
 export function ChatPage() {
     const {
-        messages,
         sessions,
         sessionId,
         isLoading,
+        getCurrentMessages,
         sendMessage,
         newChat,
         clearSession,
@@ -17,6 +17,7 @@ export function ChatPage() {
     } = useChat();
 
     const bottomRef = useRef<HTMLDivElement>(null);
+    const messages = getCurrentMessages();
 
     // Auto scroll xuống khi có message mới hoặc token mới
     useEffect(() => {
@@ -59,7 +60,7 @@ export function ChatPage() {
                     {isEmpty ? (
                         <EmptyState onSuggestion={sendMessage} />
                     ) : (
-                        messages.map((m) => <Message key={m.id} message={m} />)
+                        messages.map((m) => <Message key={m.id} message={m} onSuggestionClick={sendMessage} />)
                     )}
                     <div ref={bottomRef} />
                 </div>
