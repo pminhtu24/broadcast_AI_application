@@ -101,3 +101,27 @@ def delete_session(session_id: str) -> None:
         logger.info(f"[Session] Deleted session {session_id[:8]}")
     except Exception as e:
         logger.error(f"[Session] delete_session error: {e}")
+
+
+def list_sessions() -> List[dict]:
+    """List all sessions ordered by updated_at desc."""
+    db = _get_db()
+    try:
+        result = db.query(
+            """
+            MATCH (s:ChatSession)
+            RETURN s.session_id AS id, s.updated_at AS updatedAt, s.created_at AS createdAt
+            ORDER BY s.updated_at DESC
+            """,
+        )
+        return [
+            {
+                "id": r["id"],
+                "updatedAt": r["updatedAt"],
+                "createdAt": r["createdAt"],
+            }
+            for r in result
+        ]
+    except Exception as e:
+        logger.error(f"[Session] list_sessions error: {e}")
+        return []
