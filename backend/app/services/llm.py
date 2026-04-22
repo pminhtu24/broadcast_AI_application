@@ -1,4 +1,5 @@
 import logging
+import re
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.config.settings import get_settings
@@ -6,6 +7,23 @@ from app.config.settings import get_settings
 logger = logging.getLogger(__name__)
 
 _llm_instance = None
+
+SUGGESTIONS_PATTERN = re.compile(r"<SUGGESTIONS>(.*?)</SUGGESTIONS>", re.DOTALL)
+
+
+def parse_suggestions(text: str) -> tuple[str, list[str]]:
+    """Parse suggestions from response text.
+    
+    Returns:
+        tuple: (cleaned_text, list_of_suggestions)
+    """
+    match = SUGGESTIONS_PATTERN.search(text)
+    if match:
+        suggestions_text = match.group(1).strip()
+        suggestions = [s.strip() for s in suggestions_text.split("|") if s.strip()]
+        cleaned = SUGGESTIONS_PATTERN.sub("", text).strip()
+        return cleaned, suggestions
+    return text, []
 
 
 def get_llm() -> ChatOpenAI:
@@ -17,7 +35,7 @@ def get_llm() -> ChatOpenAI:
             base_url=settings.VIETTEL_BASE_URL,
             api_key=settings.VIETTEL_API_KEY.get_secret_value(),
             model=settings.VIETTEL_MODEL,
-            temperature=0.1,
+            temperature=0.3,
         )
     return _llm_instance
 

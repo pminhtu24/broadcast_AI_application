@@ -168,14 +168,14 @@ async def generate_stream(
 ) -> AsyncGenerator[str, None]:
     from app.config.constants import CHAT_SYSTEM_TEMPLATE, CALCULATE_SYSTEM_TEMPLATE
     llm = get_llm()
- 
+
     if intent == "calculate":
         system_prompt = CALCULATE_SYSTEM_TEMPLATE.replace("{context}", context)
     else:
         system_prompt = CHAT_SYSTEM_TEMPLATE.replace("{context}", context)
- 
+
     llm_messages = _build_messages_with_history(system_prompt, user_message, history)
- 
+
     try:
         async for chunk in llm.astream(llm_messages):
             token = chunk.content
@@ -184,6 +184,61 @@ async def generate_stream(
     except Exception as e:
         logger.error(f"[GenerateStream] Error: {e}")
         yield f"\n\n[Lỗi khi tạo câu trả lời: {e}]"
+
+
+async def generate_stream_and_collect(
+    user_message: str,
+    context: str,
+    intent: str,
+    history: list[ChatMessage],
+):
+    """True streaming: yields tokens immediately while collecting full response.
+    
+    Yields:
+        str: token from LLM
+    """
+    from app.config.constants import CHAT_SYSTEM_TEMPLATE, CALCULATE_SYSTEM_TEMPLATE
+    llm = get_llm()
+
+    if intent == "calculate":
+        system_prompt = CALCULATE_SYSTEM_TEMPLATE.replace("{context}", context)
+    else:
+        system_prompt = CHAT_SYSTEM_TEMPLATE.replace("{context}", context)
+
+    llm_messages = _build_messages_with_history(system_prompt, user_message, history)
+
+    try:
+        async for chunk in llm.astream(llm_messages):
+            token = chunk.content
+            if token:
+                yield ("token", token)
+    except Exception as e:
+        logger.error(f"[GenerateStream] Error: {e}")
+        yield ("token", f"\n\n[Lỗi khi tạo câu trả lời: {e}]")
+    except StopAsyncIteration:
+        yield ("done", None)
+
+
+async def generate_suggestions(
+    user_message: str,
+    answer: str,
+) -> list[str]:
+    """Generate follow-up question suggestions based on the answer."""
+    from app.config.constants import SUGGESTIONS_TEMPLATE
+    
+    llm = get_llm()
+    
+    try:
+        response = llm.invoke([
+            SystemMessage(content=SUGGESTIONS_TEMPLATE),
+            HumanMessage(content=f"Câu hỏi: {user_message}\n\nCâu trả lời:\n{answer}"),
+        ])
+        suggestions_text = str(response.content).strip()
+        suggestions = [s.strip() for s in suggestions_text.split("|") if s.strip()]
+        return suggestions[:3]
+    except Exception as e:
+        logger.error(f"[GenerateSuggestions] Error: {e}")
+        return []
 
 # Node 5: save_session
 # Save new turn to Neo4j after generating the response

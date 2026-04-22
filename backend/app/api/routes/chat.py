@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage
 from app.schemas.chat import ChatRequest, ChatResponse, CitationSource
 from app.graph.workflow import invoke_graph, prepare_for_stream
-from app.graph.nodes import generate_stream, get_last_user_message
+from app.graph.nodes import generate_stream_and_collect, generate_suggestions, get_last_user_message
 from app.services import session as session_service
 
 logger = logging.getLogger(__name__)
@@ -128,15 +128,27 @@ async def chat_stream(request: ChatRequest):
                 session_service.save_turn(session_id, user_message, fallback, intent)
                 return
  
+# -----------------------------------------------------------
+            # Bước 3: stream tokens từ LLM (TRUE streaming - token về ngay)
+            # đồng thời collect full answer để generate suggestions sau
             # -----------------------------------------------------------
-            # Bước 3: stream tokens từ LLM
+            async for event_type, value in generate_stream_and_collect(
+                user_message, context, intent, history
+            ):
+                if event_type == "token":
+                    full_answer += value
+                    yield _sse({"type": "token", "content": value})
+
             # -----------------------------------------------------------
-            async for token in generate_stream(user_message, context, intent, history):
-                full_answer += token
-                yield _sse({"type": "token", "content": token})
- 
+            # Bước 4: generate suggestions sau khi stream xong
             # -----------------------------------------------------------
-            # Bước 4: gửi citations và done
+            logger.info(f"[Stream] Generating suggestions for session={session_id[:8]}")
+            suggestions = await generate_suggestions(user_message, full_answer)
+            if suggestions:
+                yield _sse({"type": "suggestions", "data": suggestions})
+
+            # -----------------------------------------------------------
+            # Bước 6: gửi citations và done
             # -----------------------------------------------------------
             citations = [
                 {
@@ -177,6 +189,20 @@ async def clear_session(session_id: str):
     """Delete conversation history — used for 'New chat' button in frontend."""
     session_service.delete_session(session_id)
     logger.info(f"[Chat] Session cleared: {session_id[:8]}")
+
+
+@router.get("/chat/sessions")
+async def get_sessions():
+    """List all sessions."""
+    sessions = session_service.list_sessions()
+    return {"sessions": sessions}
+
+
+@router.get("/chat/{session_id}/history")
+async def get_session_history(session_id: str):
+    """Get message history for a session."""
+    messages = session_service.load_history(session_id)
+    return {"messages": messages}
 
 # ---------------------------------------------------------------------------
 # Helper
