@@ -6,6 +6,9 @@ An AI-powered chat assistant that helps the Advertising & Business Department lo
 
 ---
 
+![App UI](assets/UI.png) 
+
+
 ## The Problem
 
 The Advertising & Business Department at BPTTH works with multiple overlapping price tables (THP, HP channels, radio, digital, documentaries), each governed by separate official decisions (QĐ 413, 414, 415). Staff regularly need to:
@@ -72,6 +75,53 @@ Results from all three search strategies are merged and re-ranked. Chunks that a
 
 ---
 
+## Project Structure
+
+```
+broadcast-AI-application/
+├── backend/
+│   ├── main.py                        # FastAPI entry point
+│   └── app/
+│       ├── api/routes/
+│       │   ├── chat.py                # POST /api/chat, /stream, session routes
+│       │   └── health.py              # GET /health
+│       ├── config/
+│       │   ├── settings.py            # Pydantic settings — reads backend/.env
+│       │   └── constants.py           # Cypher retrieval queries, LLM prompts, search params
+│       ├── graph/                     # LangGraph workflow
+│       │   ├── state.py               # ChatState definition
+│       │   ├── nodes.py               # Node functions (load_session, classify, retrieve, generate, ...)
+│       │   ├── edges.py               # Conditional routing logic
+│       │   └── workflow.py            # Graph compilation + invoke_graph()
+│       ├── schemas/
+│       │   └── chat.py                # Pydantic request / response models
+│       └── services/
+│           ├── retriever.py           # GraphRAG Hybrid search (vector + graph + fulltext)
+│           ├── llm.py                 # LLM singleton (Viettel AI)
+│           ├── session.py             # Neo4j session CRUD
+│           ├── pricing_tools.py       # Python pricing calculators (pure functions)
+│           └── tools.py               # LangChain StructuredTool wrappers
+│
+├── frontend/
+│   └── src/
+│       ├── components/
+│       │   ├── ChatInput.tsx          # Input box + send button
+│       │   ├── Message.tsx            # Message bubble with citations + KaTeX math
+│       │   └── Sidebar.tsx            # Session list panel
+│       ├── pages/
+│       │   └── ChatPage.tsx           # Main chat page
+│       ├── hooks/                     # Custom React hooks
+│       ├── types/                     # TypeScript type definitions
+│       └── lib/                       # Shared utilities
+│
+├── benchmark/
+│   └── run.py                         # RAGAS evaluation benchmark
+├── models/
+    └── local_model_AITeamVN_Vietnamese_Embedding_v2/   # Local embedding model
+```
+
+---
+
 ## Quick Start
 
 **Requirements:** Python ≥ 3.10, Node.js ≥ 18, pnpm, uv, Docker, Neo4j with APOC
@@ -114,12 +164,9 @@ cd frontend && pnpm dev   # http://localhost:5173
 
 ---
 
-## Testing
+## Benchmark
 
 ```bash
-# Unit tests (17 test cases)
-PYTHONPATH=backend uv run python -m pytest tests/test_nodes.py -v
-
 # RAG quality benchmark (RAGAS metrics)
 PYTHONPATH=backend uv run python benchmark/run.py
 ```
