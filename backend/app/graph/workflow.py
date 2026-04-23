@@ -6,6 +6,7 @@ from app.graph.nodes import (
     classify_intent_node,
     retrieve_node,
     generate_node,
+    calculate_node,
     save_session_node,
     format_response_node,
 )
@@ -22,6 +23,7 @@ def build_graph() -> StateGraph:
     graph.add_node("classify_intent", classify_intent_node)
     graph.add_node("retrieve", retrieve_node)
     graph.add_node("generate", generate_node)
+    graph.add_node("calculate", calculate_node)
     graph.add_node("save_session", save_session_node)
     graph.add_node("format_response", format_response_node)
     graph.set_entry_point("load_session")
@@ -51,6 +53,7 @@ def build_graph() -> StateGraph:
 
     # generate -> save_session -> format_response -> END
     graph.add_edge("generate", "save_session")
+    graph.add_edge("calculate", "save_session")
     graph.add_edge("save_session", "format_response")
     graph.add_edge("format_response", END)
 

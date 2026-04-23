@@ -11,8 +11,11 @@ def route_after_classify(state: ChatState) -> Literal["retrieve", "__end__"]:
     return "retrieve"
 
 
-def route_after_retrieve(state: ChatState) -> Literal["generate", "__end__"]:
+def route_after_retrieve(state: ChatState) -> Literal["generate", "calculate", "__end__"]:
     context = state.get("retrieved_context")
+    intent = state.get("intent")
     if not context:
         return "__end__"
+    if intent == "calculate":
+        return "calculate"
     return "generate"

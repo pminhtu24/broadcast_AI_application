@@ -1,4 +1,5 @@
 import logging
+import json
 from typing import Any, AsyncGenerator
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, BaseMessage
 from app.graph.state import ChatState
@@ -6,6 +7,8 @@ from app.schemas.chat import CitationSource, ChatMessage
 from app.services.retriever import hybrid_retrieve, format_for_llm
 from app.services.llm import get_llm
 from app.services import session as session_service
+from app.services.tools import ALL_PRICING_TOOLS
+from app.config.constants import CALCULATE_WITH_TOOLS_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -106,8 +109,97 @@ def retrieve_node(state: ChatState) -> dict[str, Any]:
         logger.error(f"[Retrieve] Error: {e}")
         return {"retrieved_context": None, "citations": [], "error": str(e)}
 
+# Node 4: calculate
 
-# Node 4a: generate (sync — use for /api/chat)
+def calculate_node(state: ChatState) -> dict[str, Any]:
+    """
+    Node responsible for handling the 'calculate' intent using function calling.
+    Instead of performing calculations directly, the LLM delegates computation
+    to dedicated Python pricing tools to ensure accuracy.
+    """
+    from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
+    from app.graph.nodes import get_last_user_message, _build_messages_with_history
+ 
+    messages = state.get("messages", [])
+    user_message = get_last_user_message(messages)
+    context = state.get("retrieved_context", "")
+    history = state.get("history", [])
+ 
+    if not user_message:
+        return {"answer": "Xin lỗi, tôi không nhận được câu hỏi.", "error": "No user message"}
+ 
+    try:
+        llm = get_llm()
+ 
+        # Bind tools into LLM — the LLM will know which tools can be called.
+        llm_with_tools = llm.bind_tools(ALL_PRICING_TOOLS)
+ 
+        system_prompt = CALCULATE_WITH_TOOLS_PROMPT
+        if context:
+            system_prompt += f"\n\nNgữ cảnh từ tài liệu (tham khảo thêm):\n{context}"
+ 
+        # LLM decide which tool to call
+        llm_messages = _build_messages_with_history(system_prompt, user_message, history)
+        response = llm_with_tools.invoke(llm_messages)
+ 
+        # Execute tool calls if applicable.
+        tool_call_count = 0
+        while response.tool_calls:
+            tool_call_count += 1
+            if tool_call_count > 10:
+                # Tránh infinite loop
+                logger.warning("[Calculate] Too many tool calls, stopping")
+                break
+ 
+            # Add LLM responses to messages.
+            llm_messages.append(response)
+ 
+            # Execute each tool call
+            for tool_call in response.tool_calls:
+                tool_name = tool_call["name"]
+                tool_args = tool_call["args"]
+                tool_id = tool_call["id"]
+ 
+                logger.info(f"[Calculate] Calling tool: {tool_name}({tool_args})")
+ 
+                # Find and call the corresponding tool
+                tool_fn = next(
+                    (t for t in ALL_PRICING_TOOLS if t.name == tool_name),
+                    None
+                )
+                if tool_fn is None:
+                    tool_result = {"error": f"Tool '{tool_name}' không tồn tại"}
+                else:
+                    try:
+                        tool_result = tool_fn.invoke(tool_args)
+                    except Exception as e:
+                        tool_result = {"error": str(e)}
+ 
+                logger.info(f"[Calculate] Tool result: {tool_result}")
+ 
+                # Return the tool's results to LLM.
+                llm_messages.append(
+                    ToolMessage(
+                        content=json.dumps(tool_result, ensure_ascii=False),
+                        tool_call_id=tool_id,
+                    )
+                )
+ 
+            # LLM continues with tool results
+            response = llm_with_tools.invoke(llm_messages)
+ 
+        answer = str(response.content)
+        logger.info(
+            f"[Calculate] Done | {tool_call_count} tool calls | "
+            f"{len(answer)} chars | history={len(history)} msgs"
+        )
+        return {"answer": answer}
+ 
+    except Exception as e:
+        logger.error(f"[Calculate] Error: {e}", exc_info=True)
+        return {"answer": None, "error": str(e)}
+
+# Node 5a: generate (sync — use for /api/chat)
 
 def generate_node(state: ChatState) -> dict[str, Any]:
     messages = state.get("messages", [])
@@ -129,17 +221,10 @@ def generate_node(state: ChatState) -> dict[str, Any]:
         }
 
     try:
-        from app.config.constants import (
-            CHAT_SYSTEM_TEMPLATE,
-            CALCULATE_SYSTEM_TEMPLATE,
-        ) 
+        from app.config.constants import CHAT_SYSTEM_TEMPLATE
 
         llm = get_llm()
-
-        if intent == "calculate":
-            system_prompt = CALCULATE_SYSTEM_TEMPLATE.replace("{context}", context)
-        else:
-            system_prompt = CHAT_SYSTEM_TEMPLATE.replace("{context}", context)
+        system_prompt = CHAT_SYSTEM_TEMPLATE.replace("{context}", context)
 
         llm_messages = _build_messages_with_history(
             system_prompt, user_message, history
@@ -155,7 +240,7 @@ def generate_node(state: ChatState) -> dict[str, Any]:
         return {"answer": None, "error": str(e)}
 
 # ---------------------------------------------------------------------------
-# Node 4b: generate_stream (async generator — use for /api/chat/stream)
+# Node 5b: generate_stream (async generator — use for /api/chat/stream)
 # called directly from route to yield token immediately when LLM returns,
 # without waiting for completion.
 # ---------------------------------------------------------------------------
@@ -166,13 +251,10 @@ async def generate_stream(
     intent: str,
     history: list[ChatMessage],
 ) -> AsyncGenerator[str, None]:
-    from app.config.constants import CHAT_SYSTEM_TEMPLATE, CALCULATE_SYSTEM_TEMPLATE
+    from app.config.constants import CHAT_SYSTEM_TEMPLATE
     llm = get_llm()
 
-    if intent == "calculate":
-        system_prompt = CALCULATE_SYSTEM_TEMPLATE.replace("{context}", context)
-    else:
-        system_prompt = CHAT_SYSTEM_TEMPLATE.replace("{context}", context)
+    system_prompt = CHAT_SYSTEM_TEMPLATE.replace("{context}", context)
 
     llm_messages = _build_messages_with_history(system_prompt, user_message, history)
 
@@ -197,13 +279,10 @@ async def generate_stream_and_collect(
     Yields:
         str: token from LLM
     """
-    from app.config.constants import CHAT_SYSTEM_TEMPLATE, CALCULATE_SYSTEM_TEMPLATE
+    from app.config.constants import CHAT_SYSTEM_TEMPLATE
     llm = get_llm()
 
-    if intent == "calculate":
-        system_prompt = CALCULATE_SYSTEM_TEMPLATE.replace("{context}", context)
-    else:
-        system_prompt = CHAT_SYSTEM_TEMPLATE.replace("{context}", context)
+    system_prompt = CHAT_SYSTEM_TEMPLATE.replace("{context}", context)
 
     llm_messages = _build_messages_with_history(system_prompt, user_message, history)
 
@@ -240,7 +319,7 @@ async def generate_suggestions(
         logger.error(f"[GenerateSuggestions] Error: {e}")
         return []
 
-# Node 5: save_session
+# Node 6: save_session
 # Save new turn to Neo4j after generating the response
 
 
@@ -261,7 +340,7 @@ def save_session_node(state: ChatState) -> dict[str, Any]:
     return {}
 
 
-# Node 6: format_response
+# Node 7: format_response
 
 def format_response_node(state: ChatState) -> dict[str, Any]:
     answer = state.get("answer")
