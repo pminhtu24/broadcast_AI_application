@@ -202,9 +202,10 @@ QUY TẮC ĐỊNH DẠNG SỐ TIỀN TRONG LATEX:
 QUESTION_TRANSFORM_TEMPLATE = "Dựa trên cuộc hội thoại bên dưới, hãy tạo một câu truy vấn tìm kiếm để lấy thông tin liên quan. Chỉ trả về câu truy vấn, không thêm gì khác."
 
 INTENT_CLASSIFICATION_TEMPLATE = """
-Phân loại câu hỏi vào 1 trong 2 nhóm:
+Phân loại câu hỏi vào 1 trong 3 nhóm:
 - qa        : hỏi giá, tra cứu bảng giá, đơn giá dịch vụ quảng cáo truyền hình, phát thanh, báo
 - calculate : tính toán chi phí, tính tổng tiền, yêu cầu báo giá cụ thể với số lượng
+- quote     : yêu cầu xuất file báo giá, tạo chào giá chính thức, xuất file để báo với khách hàng
 
 Ví dụ:
 Câu hỏi: "Đơn giá quảng cáo khung giờ HP8 trên kênh THP là bao nhiêu?"
@@ -228,7 +229,16 @@ Intent: calculate
 Câu hỏi: "Hợp đồng 135 lần quảng cáo khung giờ HP11, doanh số bao nhiêu và được chiết khấu mấy phần trăm?"
 Intent: calculate
 
-Chỉ trả về đúng 1 từ: qa hoặc calculate
+Câu hỏi: "Xuất báo giá cho gói quảng cáo này"
+Intent: quote
+
+Câu hỏi: "Tôi muốn tạo chào giá gửi cho khách hàng"
+Intent: quote
+
+Câu hỏi: "Export file báo giá dịch vụ quảng cáo này"
+Intent: quote
+
+Chỉ trả về đúng 1 từ: qa, calculate hoặc quote
 """
 
 SUGGESTIONS_TEMPLATE = """Dựa trên câu hỏi và câu trả lời bên dưới, hãy gợi ý 2-3 câu hỏi tiếp theo mà khách hàng thường quan tâm.
