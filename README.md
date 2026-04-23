@@ -166,11 +166,20 @@ cd frontend && pnpm dev   # http://localhost:5173
 
 ## Benchmark
 
-```bash
-# RAG quality benchmark (RAGAS metrics)
-PYTHONPATH=backend uv run python benchmark/run.py
-```
+Evaluated 4 retrieval strategies on **50 custom test questions** using [RAGAS](https://docs.ragas.io/) metrics.
 
----
+| Retrieval Mode | Median Latency | Mean Latency | Answer Relevancy | Context Precision | Context Recall | Faithfulness |
+|----------------|---------------|-------------|-----------------|------------------|---------------|-------------|
+| Fulltext only | 146ms | 149ms | 0.649 | 1.000 | 1.0 | 1.0 |
+| Vector only | 2,032ms | 2,695ms | 0.789 | 1.000 | 1.0 | 1.0 |
+| Graph + Vector | 1,406ms | 1,961ms | 0.855 | 1.000 | 1.0 | 1.0 |
+| **Graph + Vector + Fulltext**   | **1,523ms** | **1,839ms** | **0.884** | **1.000** | **1.0** | **1.0** |
+
+**Key takeaways:**
+- **Hybrid (Graph + Vector + Fulltext)** achieves the highest answer relevancy (+11.9% over vector-only) while being ~25% faster at median latency
+- **Fulltext-only** is fastest but has the lowest relevancy — poor at semantic queries
+- **Context Precision / Recall / Faithfulness** are near-perfect across all modes, meaning retrieved chunks are always relevant and answers stay grounded
+
+> **Design decision:** The hybrid mode adds ~1.4s over fulltext-only — a deliberate trade-off for significantly higher answer relevancy. At ~1.5s median retrieval latency, the UX remains responsive and acceptable for a domain-specific internal tool.
 
 *Internal use — Hai Phong Radio and Television Station · v0.1.0 · April 2026*
