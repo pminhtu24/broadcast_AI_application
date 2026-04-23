@@ -69,18 +69,3 @@ def chat_with_context(question: str, context: str) -> str:
         ]
     )
     return response.content
-
-
-def calculate_with_context(question: str, context: str) -> str:
-    """Generate calculation response with context"""
-    llm = get_llm()
-    from app.config.constants import CALCULATE_SYSTEM_TEMPLATE
-
-    template = CALCULATE_SYSTEM_TEMPLATE.replace("{context}", context)
-    response = llm.invoke(
-        [
-            SystemMessage(content=template),
-            HumanMessage(content=question),
-        ]
-    )
-    return response.content

@@ -132,12 +132,25 @@ async def chat_stream(request: ChatRequest):
             # stream tokens from LLM 
             # Also, collect the full answers to generate suggestions later.
             # -----------------------------------------------------------
-            async for event_type, value in generate_stream_and_collect(
-                user_message, context, intent, history
-            ):
-                if event_type == "token":
-                    full_answer += value
-                    yield _sse({"type": "token", "content": value})
+            if intent == "calculate":
+                from app.graph.nodes import calculate_node
+                result = calculate_node({
+                    "messages": [{"role": "user", "content": user_message}]
+                    if isinstance(state["messages"][0], dict)
+                    else state["messages"],
+                    "history": history,
+                    "retrieved_context": context,
+                    "intent": intent,
+                })
+                full_answer = result.get("answer", "")
+                yield _sse({"type": "token", "content": full_answer})
+            else:
+                async for event_type, value in generate_stream_and_collect(
+                    user_message, context, intent, history
+                ):
+                    if event_type == "token":
+                        full_answer += value
+                        yield _sse({"type": "token", "content": value})
 
             # -----------------------------------------------------------
             # generate suggestions after streamming
