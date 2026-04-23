@@ -3,6 +3,7 @@ import sys
 import time
 import logging
 import os
+import math
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict
@@ -11,7 +12,10 @@ from dotenv import load_dotenv
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
-load_dotenv(project_root / ".env")
+env_path = project_root / ".env"
+if not env_path.exists():
+    env_path = project_root / "backend" / ".env"
+load_dotenv(env_path)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,6 +35,24 @@ from benchmark.dataset import get_test_cases
 from backend.app.config.settings import settings
 
 OUTPUT_DIR = "benchmark_results"
+RAGAS_PROFILES = {
+    "baseline": {
+        "max_contexts": None,  # Keep all contexts
+        "max_context_chars": None,  # No per-context truncation
+        "total_context_chars": None,  # No total truncation
+        "batch_size": 8,
+        "eval_max_tokens": 2048,
+        "text_only_eval": False,
+    },
+    "stable": {
+        "max_contexts": 3,
+        "max_context_chars": 1500,
+        "total_context_chars": 3500,
+        "batch_size": 4,
+        "eval_max_tokens": 4096,
+        "text_only_eval": True,
+    },
+}
 
 MODE_LABELS = {
     "vector": "Vector Search",
@@ -78,6 +100,55 @@ def compute_latency_stats(latencies: List[float]) -> Dict:
     }
 
 
+def _extract_eval_text(context: str) -> str:
+    """Use only textual content for evaluation to reduce prompt length."""
+    marker = "\n\nEntities:\n"
+    if marker in context:
+        return context.split(marker, 1)[0].strip()
+    return context
+
+
+def _truncate_context(text: str, max_chars: int) -> str:
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 1].rstrip() + "..."
+
+
+def prepare_ragas_contexts(contexts: List[str], ragas_profile: Dict) -> List[str]:
+    """Normalize and truncate contexts before sending to RAGAS."""
+    max_contexts = ragas_profile["max_contexts"]
+    max_context_chars = ragas_profile["max_context_chars"]
+    total_context_chars = ragas_profile["total_context_chars"]
+    text_only_eval = ragas_profile["text_only_eval"]
+
+    cleaned = [(_extract_eval_text(c) if text_only_eval else c) for c in contexts if c]
+    limited = cleaned[:max_contexts] if max_contexts is not None else cleaned
+    if not limited:
+        return []
+
+    if max_context_chars is None and total_context_chars is None:
+        return limited
+
+    if max_context_chars is None:
+        per_context = max(1, total_context_chars // len(limited))
+    elif total_context_chars is None:
+        per_context = max_context_chars
+    else:
+        per_context = max(1, min(max_context_chars, total_context_chars // len(limited)))
+    truncated = [_truncate_context(c, per_context) for c in limited]
+
+    if total_context_chars is None:
+        return truncated
+
+    total_chars = sum(len(c) for c in truncated)
+    if total_chars <= total_context_chars:
+        return truncated
+
+    ratio = total_context_chars / total_chars
+    adjusted_budget = max(200, math.floor(per_context * ratio))
+    return [_truncate_context(c, adjusted_budget) for c in truncated]
+
+
 def run_mode_benchmark(
     adapter: Neo4jRetrieverAdapter,
     generator_llm,
@@ -97,6 +168,7 @@ def run_mode_benchmark(
         latencies.append(result.latency_ms)
 
         row = {
+            "id": qa.get("id"),
             "user_input": question,
             "retrieved_contexts": result.chunks,
             "reference": reference,
@@ -116,9 +188,13 @@ def run_mode_benchmark(
 
 
 def run_benchmark(
-    modes: List[str] = None, include_ragas: bool = True, limit: int = None
+    modes: List[str] = None,
+    include_ragas: bool = True,
+    limit: int = None,
+    ragas_profile_name: str = "stable",
 ):
     modes = modes or MODES
+    ragas_profile = RAGAS_PROFILES[ragas_profile_name]
     queries = get_test_cases()
     if limit:
         queries = queries[:limit]
@@ -126,6 +202,8 @@ def run_benchmark(
     else:
         logger.info(f"Loaded {len(queries)} test queries")
     logger.info(f"Modes: {modes}")
+    if include_ragas:
+        logger.info(f"RAGAS profile: {ragas_profile_name}")
 
     results = {mode: {"latencies": [], "rows": []} for mode in modes}
 
@@ -149,7 +227,7 @@ def run_benchmark(
             os.getenv("VIETTEL_MODEL", "openai/gpt-oss-120b"),
             provider="openai",
             client=client,
-            max_tokens=2048
+            max_tokens=ragas_profile["eval_max_tokens"],
         )
         evaluator_embeddings = LangchainEmbeddingsWrapper(
             embeddings=InfinityEmbeddings(
@@ -205,12 +283,25 @@ def run_benchmark(
                 continue
 
             eval_dataset = EvaluationDataset.from_list(data)
+            eval_rows = []
+            for item in data:
+                eval_rows.append(
+                    {
+                        "user_input": item["user_input"],
+                        "reference": item["reference"],
+                        "response": item.get("response", ""),
+                        "retrieved_contexts": prepare_ragas_contexts(
+                            item.get("retrieved_contexts", []), ragas_profile=ragas_profile
+                        ),
+                    }
+                )
+            eval_dataset = EvaluationDataset.from_list(eval_rows)
 
             try:
                 eval_result = evaluate(
                     dataset=eval_dataset,
                     metrics=ragas_metrics,
-                    batch_size=8,
+                    batch_size=ragas_profile["batch_size"],
                 )
 
                 df = eval_result.to_pandas()
@@ -227,6 +318,30 @@ def run_benchmark(
                             logger.warning(
                                 f"  [{mode}] {metric_name}: chỉ tính được {scored}/{total} samples "
                                 f"({total - scored} bị drop do max_tokens hoặc parse fail)"
+                            )
+                        if scored < total:
+                            dropped = []
+                            for idx in df.index[df[metric_name].isna()]:
+                                source = data[idx]
+                                dropped.append(
+                                    {
+                                        "id": source.get("id"),
+                                        "ctx_len": sum(
+                                            len(c)
+                                            for c in prepare_ragas_contexts(
+                                                source.get("retrieved_contexts", []), ragas_profile=ragas_profile
+                                            )
+                                        ),
+                                        "response_len": len(source.get("response", "")),
+                                        "reference_len": len(source.get("reference", "")),
+                                    }
+                                )
+                            logger.warning(
+                                f"  [{mode}] dropped {metric_name} samples: "
+                                + ", ".join(
+                                    f"id={d['id']} ctx={d['ctx_len']} resp={d['response_len']} ref={d['reference_len']}"
+                                    for d in dropped
+                                )
                             )
 
                 scores = eval_result.scores[0]
@@ -251,6 +366,7 @@ def run_benchmark(
     output_data = {
         "timestamp": datetime.now().isoformat(),
         "total_questions": len(queries),
+        "ragas_profile": ragas_profile_name if include_ragas else None,
         "results": {
             mode: {
                 "latency_stats": compute_latency_stats(results[mode]["latencies"]),
@@ -274,11 +390,22 @@ if __name__ == "__main__":
     parser.add_argument("--modes", nargs="+", choices=MODES, default=None)
     parser.add_argument("--no-ragas", action="store_true", help="Skip RAGAS evaluation")
     parser.add_argument(
+        "--ragas-profile",
+        choices=sorted(RAGAS_PROFILES.keys()),
+        default="stable",
+        help="RAGAS config profile: baseline (no truncation) or stable (truncate to reduce drop).",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=None,
-        help="Giới hạn số câu hỏi (dùng để smoke test)",
+        help="Giới hạn số câu hỏi (smoke test)",
     )
     args = parser.parse_args()
 
-    run_benchmark(modes=args.modes, include_ragas=not args.no_ragas, limit=args.limit)
+    run_benchmark(
+        modes=args.modes,
+        include_ragas=not args.no_ragas,
+        limit=args.limit,
+        ragas_profile_name=args.ragas_profile,
+    )
