@@ -73,18 +73,18 @@ async def chat(request: ChatRequest):
 @router.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
     """
-    Streaming endpoint dùng Server-Sent Events (SSE).
+    Streaming endpoint use Server-Sent Events (SSE).
  
-    Protocol SSE — mỗi event có format:
+    Protocol SSE — Each event has its own format.:
         data: <json_string>\\n\\n
  
-    Các loại event client nhận được theo thứ tự:
+    The types of events clients receive, in order:
         1. {"type": "meta",   "intent": "qa", "session_id": "..."}
-        2. {"type": "token",  "content": "từng token..."}   (nhiều lần)
+        2. {"type": "token",  "content": "each token..."}   (many times)
         3. {"type": "citations", "data": [...]}
         4. {"type": "done"}
  
-    Nếu có lỗi:
+    If there is an error:
         {"type": "error", "message": "..."}
     """
     session_id = request.session_id or str(uuid.uuid4())
@@ -95,7 +95,7 @@ async def chat_stream(request: ChatRequest):
  
         try:
             # -----------------------------------------------------------
-            # Bước 1+2: load_session + classify + retrieve (parallel)
+            # load_session + classify + retrieve (parallel)
             # -----------------------------------------------------------
             state = await prepare_for_stream({
                 "messages": [HumanMessage(content=request.message)],
@@ -114,11 +114,11 @@ async def chat_stream(request: ChatRequest):
             history = state.get("history", [])
             user_message = get_last_user_message(state["messages"])
  
-            # Gửi meta ngay — client biết intent và session_id trước khi token về
+            # Send meta immediately — client knows intent and session_id before the token arrives
             yield _sse({"type": "meta", "intent": intent, "session_id": session_id})
  
             # -----------------------------------------------------------
-            # Fallback nếu không tìm được context
+            # Fallback if context cannot be found.
             # -----------------------------------------------------------
             if not context:
                 fallback = "Xin lỗi, tôi không tìm thấy thông tin liên quan đến câu hỏi của bạn."
@@ -128,9 +128,9 @@ async def chat_stream(request: ChatRequest):
                 session_service.save_turn(session_id, user_message, fallback, intent)
                 return
  
-# -----------------------------------------------------------
-            # Bước 3: stream tokens từ LLM (TRUE streaming - token về ngay)
-            # đồng thời collect full answer để generate suggestions sau
+            # -----------------------------------------------------------
+            # stream tokens from LLM 
+            # Also, collect the full answers to generate suggestions later.
             # -----------------------------------------------------------
             async for event_type, value in generate_stream_and_collect(
                 user_message, context, intent, history
@@ -140,7 +140,7 @@ async def chat_stream(request: ChatRequest):
                     yield _sse({"type": "token", "content": value})
 
             # -----------------------------------------------------------
-            # Bước 4: generate suggestions sau khi stream xong
+            # generate suggestions after streamming
             # -----------------------------------------------------------
             logger.info(f"[Stream] Generating suggestions for session={session_id[:8]}")
             suggestions = await generate_suggestions(user_message, full_answer)
@@ -148,7 +148,7 @@ async def chat_stream(request: ChatRequest):
                 yield _sse({"type": "suggestions", "data": suggestions})
 
             # -----------------------------------------------------------
-            # Bước 6: gửi citations và done
+            # send citations và done
             # -----------------------------------------------------------
             citations = [
                 {
@@ -163,7 +163,7 @@ async def chat_stream(request: ChatRequest):
             yield _sse({"type": "done"})
  
             # -----------------------------------------------------------
-            # Bước 5: lưu session (sau khi stream xong)
+            # save session (after streaming finnished)
             # -----------------------------------------------------------
             session_service.save_turn(session_id, user_message, full_answer, intent)
             logger.info(f"[Stream] Done | session={session_id[:8]} | intent={intent} | {len(full_answer)} chars")
@@ -176,7 +176,7 @@ async def chat_stream(request: ChatRequest):
         event_generator(),
         media_type="text/event-stream",
         headers={
-            # Tắt buffering để token về ngay, không bị gom batch
+            # Turn off buffering so tokens arrive immediately, without being batch-packed
             "X-Accel-Buffering": "no",
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
@@ -186,7 +186,7 @@ async def chat_stream(request: ChatRequest):
 
 @router.delete("/chat/{session_id}", status_code=204)
 async def clear_session(session_id: str):
-    """Delete conversation history — used for 'New chat' button in frontend."""
+    """Delete conversation history"""
     session_service.delete_session(session_id)
     logger.info(f"[Chat] Session cleared: {session_id[:8]}")
 
@@ -209,5 +209,5 @@ async def get_session_history(session_id: str):
 # ---------------------------------------------------------------------------
  
 def _sse(data: dict) -> str:
-    """Format một SSE event đúng chuẩn."""
+    """Format a standard SSE event."""
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
