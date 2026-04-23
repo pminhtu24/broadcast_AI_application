@@ -10,6 +10,9 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
 )
 
+logging.getLogger("neo4j").setLevel(logging.ERROR)
+logging.getLogger("neo4j.notifications").setLevel(logging.ERROR)
+
 logger = logging.getLogger(__name__)
 
 APP_VERSION = "0.1.0"
