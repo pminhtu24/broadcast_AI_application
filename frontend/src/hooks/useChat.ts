@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { streamChat, deleteSession, getSessions, getSessionHistory } from "@/lib/api";
-import type { ChatMessage, Session, CitationSource, Intent } from "@/types";
+import type { ChatMessage, Session, CitationSource, Intent, QuoteFile } from "@/types";
 
 export function useChat() {
     const [sessions, setSessions] = useState<Session[]>([]);
@@ -118,6 +118,16 @@ export function useChat() {
                         currentSessionId!,
                         (messagesMapRef.current.get(currentSessionId!) ?? []).map((m) =>
                             m.id === assistantId ? { ...m, suggestions } : m
+                        )
+                    );
+                    setUpdateTrigger((v) => v + 1);
+                },
+
+                onQuote: (files: QuoteFile[]) => {
+                    messagesMapRef.current.set(
+                        currentSessionId!,
+                        (messagesMapRef.current.get(currentSessionId!) ?? []).map((m) =>
+                            m.id === assistantId ? { ...m, quoteFiles: files } : m
                         )
                     );
                     setUpdateTrigger((v) => v + 1);

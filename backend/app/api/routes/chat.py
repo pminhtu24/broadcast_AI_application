@@ -25,15 +25,19 @@ async def chat(request: ChatRequest):
 
     try:
         initial_state = {
-            "messages": [HumanMessage(content=request.message)],
-            "session_id": session_id,
-            "history": [],
-            "intent": None,
-            "retrieved_context": None,
-            "citations": [],
-            "answer": None,
-            "error": None,
-        }
+                "messages": [HumanMessage(content=request.message)],
+                "session_id": session_id,
+                "history": [],
+                "intent": None,
+                "retrieved_context": None,
+                "citations": [],
+                "customer_info": None,
+                "quote_items": [],
+                "quote_status": None,
+                "quote_file_path": None,
+                "answer": None,
+                "error": None,
+            }
 
         # Run entire workflow
         result = invoke_graph(initial_state)
@@ -104,6 +108,10 @@ async def chat_stream(request: ChatRequest):
                 "intent": None,
                 "retrieved_context": None,
                 "citations": [],
+                "customer_info": None,
+                "quote_items": [],
+                "quote_status": None,
+                "quote_file_path": None,
                 "answer": None,
                 "error": None,
             })
@@ -144,6 +152,32 @@ async def chat_stream(request: ChatRequest):
                 })
                 full_answer = result.get("answer", "")
                 yield _sse({"type": "token", "content": full_answer})
+            elif intent == "quote":
+                from app.graph.nodes import quote_node
+                result = quote_node({
+                    "messages": state["messages"],
+                    "history": history,
+                    "retrieved_context": context,
+                    "intent": intent,
+                    "session_id": session_id,
+                })
+                full_answer = result.get("answer", "")
+                yield _sse({"type": "token", "content": full_answer})
+
+                quote_file_path = result.get("quote_file_path")
+                if quote_file_path:
+                    files = quote_file_path.split(",")
+                    yield _sse({
+                        "type": "quote",
+                        "files": [
+                            {
+                                "filename": f,
+                                "url": f"/api/quotes/{f}",
+                                "price_list": "QĐ 415" if "415" in f else ("QĐ 413" if "413" in f else "QĐ 414"),
+                            }
+                            for f in files
+                        ],
+                    })
             else:
                 async for event_type, value in generate_stream_and_collect(
                     user_message, context, intent, history
