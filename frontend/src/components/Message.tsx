@@ -3,7 +3,9 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import clsx from "clsx";
+import { Download } from "lucide-react";
 import type { ChatMessage } from "@/types";
+import { downloadQuote } from "@/lib/api";
 
 interface Props {
     message: ChatMessage;
@@ -33,10 +35,12 @@ export function Message({ message, onSuggestionClick }: Props) {
                             "text-[10px] font-mono px-2 py-0.5 rounded-full border",
                             message.intent === "calculate"
                                 ? "text-amber-400 border-amber-400/30 bg-amber-400/10"
+                                : message.intent === "quote"
+                                ? "text-blue-400 border-blue-400/30 bg-blue-400/10"
                                 : "text-emerald-400 border-emerald-400/30 bg-emerald-400/10"
                         )}
                     >
-                        {message.intent === "calculate" ? "calculate" : "qa"}
+                        {message.intent}
                     </span>
                 </div>
             )}
@@ -136,6 +140,28 @@ export function Message({ message, onSuggestionClick }: Props) {
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Quote Files Download */}
+            {message.quoteFiles && message.quoteFiles.length > 0 && (
+                <div className="flex flex-col gap-2 max-w-[85%] mt-2">
+                    <span className="text-[11px] text-white/40 font-medium">
+                        File báo giá
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                        {message.quoteFiles.map((file, i) => (
+                            <button
+                                key={i}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-1 border border-accent/30 text-xs text-white/80 hover:text-white hover:border-accent transition-colors cursor-pointer"
+                                onClick={() => downloadQuote(file.url, file.filename)}
+                            >
+                                <Download className="w-4 h-4 text-accent" />
+                                <span>{file.price_list}</span>
+                                <span className="text-white/40">DOCX</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
             )}
 

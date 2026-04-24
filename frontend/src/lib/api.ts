@@ -1,4 +1,4 @@
-import type { SSEEvent, CitationSource, ChatMessage, Session } from "@/types";
+import type { SSEEvent, CitationSource, ChatMessage, Session, QuoteFile } from "@/types";
 
 const BASE = "/api";
 
@@ -7,6 +7,7 @@ export interface StreamCallbacks {
     onToken: (token: string) => void;
     onCitations: (citations: CitationSource[]) => void;
     onSuggestions: (suggestions: string[]) => void;
+    onQuote: (files: QuoteFile[]) => void;
     onDone: () => void;
     onError: (message: string) => void;
 }
@@ -77,6 +78,9 @@ export function streamChat(
                                 break;
                             case "suggestions":
                                 callbacks.onSuggestions(event.data);
+                                break;
+                            case "quote":
+                                callbacks.onQuote(event.files);
                                 break;
                             case "done":
                                 callbacks.onDone();
@@ -162,4 +166,23 @@ export async function getSessionHistory(sessionId: string): Promise<ChatMessage[
         role: m.role as "user" | "assistant",
         content: m.content,
     }));
+}
+
+/**
+ * Tải file báo giá DOCX.
+ */
+export async function downloadQuote(url: string, filename: string): Promise<void> {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to download: ${res.status}`);
+
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
 }

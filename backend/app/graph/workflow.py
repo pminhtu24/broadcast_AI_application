@@ -7,6 +7,7 @@ from app.graph.nodes import (
     retrieve_node,
     generate_node,
     calculate_node,
+    quote_node,
     save_session_node,
     format_response_node,
 )
@@ -24,6 +25,7 @@ def build_graph() -> StateGraph:
     graph.add_node("retrieve", retrieve_node)
     graph.add_node("generate", generate_node)
     graph.add_node("calculate", calculate_node)
+    graph.add_node("quote", quote_node)
     graph.add_node("save_session", save_session_node)
     graph.add_node("format_response", format_response_node)
     graph.set_entry_point("load_session")
@@ -47,13 +49,16 @@ def build_graph() -> StateGraph:
         route_after_retrieve,
         {
             "generate": "generate",
+            "calculate": "calculate",
+            "quote": "quote",
             "__end__": END,
         },
     )
 
-    # generate -> save_session -> format_response -> END
+    # generate/calculate/quote -> save_session -> format_response -> END
     graph.add_edge("generate", "save_session")
     graph.add_edge("calculate", "save_session")
+    graph.add_edge("quote", "save_session")
     graph.add_edge("save_session", "format_response")
     graph.add_edge("format_response", END)
 

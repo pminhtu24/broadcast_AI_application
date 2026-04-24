@@ -1,21 +1,39 @@
-from typing import TypedDict, Annotated, List, Optional
+from typing import TypedDict, Annotated, List, Optional, Literal
 from langchain_core.messages import BaseMessage
 from app.schemas.chat import CitationSource, ChatMessage
 
 
-class ChatState(TypedDict):
-    # LangGraph append-only message list
-    messages: Annotated[List[BaseMessage], "append_messages"]
+class QuoteItem(TypedDict):
+    service: str
+    frame: str
+    quantity: int
+    unit_price: float
+    total: float
+    price_list: Literal["414", "415", "413"]
+    content: Optional[str]
+    type: Optional[str]
+    duration: Optional[str]
 
-    # Conversation history from Neo4j — generate_node for LLM context
+
+class CustomerInfo(TypedDict):
+    name: str
+    address: Optional[str]
+    is_hp_business: bool
+
+
+class ChatState(TypedDict):
+    messages: Annotated[List[BaseMessage], "append_messages"]
     history: List[ChatMessage]
 
-    # Result from nodes
     intent: Optional[str]
     retrieved_context: Optional[str]
     citations: List[CitationSource]
 
-    # Final Output
+    customer_info: Optional[CustomerInfo]
+    quote_items: List[QuoteItem]
+    quote_status: Optional[str]
+    quote_file_path: Optional[str]
+
     session_id: str
     answer: Optional[str]
     error: Optional[str]
