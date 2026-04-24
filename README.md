@@ -6,8 +6,7 @@ An AI-powered chat assistant that helps the Advertising & Business Department lo
 
 ---
 
-![App UI](assets/UI.png) 
-
+![App UI](assets/UI.png)
 
 ## The Problem
 
@@ -23,55 +22,55 @@ Doing this manually is slow and error-prone, especially under client pressure.
 
 ## The Solution
 
-A conversational AI assistant backed by a **Knowledge Graph** built from the station's actual documents. Instead of keyword search, the system understands *intent* and retrieves *contextually relevant* information.
+A conversational AI assistant backed by a **Knowledge Graph** built from the station's actual documents. Instead of keyword search, the system understands _intent_ and retrieves _contextually relevant_ information.
 
-**Two modes:**
+**Three modes:**
+
 - **Q&A mode** — answers pricing and policy questions with source citations
 - **Calculate mode** — computes exact costs using dedicated Python pricing tools (LLM handles presentation, not arithmetic)
-- **Quote mode** - In Progressing..
+- **Quote mode** — generates professional advertising quote proposals in Word format with pricing details and customer information
 
 ---
 
 ## How It Works
 
-```
-User message
-    │
-    ├── Intent classifier  →  "qa" or "calculate"
-    │
-    ├── GraphRAG Hybrid Retrieval (runs in parallel)
-    │     ├── Vector search (semantic similarity)
-    │     ├── Graph traversal (entity relationships)
-    │     └── Fulltext search (keyword matching)
-    │
-    ├── "qa"         → LLM generates answer from retrieved context
-    └── "calculate"  → LLM calls Python pricing tools → formats result
-```
+**Visual Architecture:**
+
+![Visual Architecture](assets/how%20it%20works.png)
 
 ### Knowledge Base (Neo4j)
 
 The core of the system. Source documents are processed into a **Knowledge Graph** where:
+
 - Text is split into chunks and embedded with a Vietnamese embedding model
 - Entities (time slots, prices, channels, customer types) and their relationships are extracted by an LLM
 - Three indexes enable hybrid search: vector, fulltext, and entity-level
 
-Built with a **customized version of [Neo4j LLM Graph Builder](https://neo4j.com/labs/genai-ecosystem/llm-graph-builder/)**, adapted for Vietnamese and BPTTH-specific content.
+Built with a **customized version of [Neo4j LLM Graph Builder](https://neo4j.com/labs/genai-ecosystem/llm-graph-builder/)**, I forked this repo then refactor it with some strategies and config. Adapted for Vietnamese and BPTTH-specific content, you can contact me via email pminhtu24@gmail.com if u interested in.
 
-### GraphRAG Hybrid
+### Quote Generation
 
-Results from all three search strategies are merged and re-ranked. Chunks that appear in multiple search types (e.g., both vector and fulltext) are ranked higher — improving answer precision for domain-specific terms like slot codes (HP8, T1, S3).
+Quote mode extracts customer information and pricing details from the conversation context to automatically generate professional advertising quote proposals in **Word format** (DOCX):
+
+- Extracts customer name, contact, requested time slots, and channels
+- Retrieves applicable pricing rules from Neo4j Knowledge Graph
+- Generates formatted pricing table with pricing decision references (QĐ 413, 414, 415)
+- Creates downloadable Word document ready for client delivery
+- Files stored in `backend/generated_quotes/` with session-based naming for easy cleanup
+
+**Example:** `"Hãy tạo báo giá cho khách hàng ABC với giá gói HP1 trong tháng..."` → Generated Word doc with full pricing breakdown
 
 ---
 
 ## Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Python, FastAPI, LangGraph |
-| LLM | Viettel AI API |
-| Embedding | `AITeamVN/Vietnamese_Embedding_v2` (self-hosted via Infinity) |
-| Knowledge Graph | Neo4j (AuraDB) |
-| Frontend | React, Vite, TypeScript, Tailwind CSS |
+| Layer           | Technology                                                    |
+| --------------- | ------------------------------------------------------------- |
+| Backend         | Python, FastAPI, LangGraph                                    |
+| LLM             | Viettel AI API                                                |
+| Embedding       | `AITeamVN/Vietnamese_Embedding_v2` (self-hosted via Infinity) |
+| Knowledge Graph | Neo4j (AuraDB)                                                |
+| Frontend        | React, Vite, TypeScript, Tailwind CSS                         |
 
 ---
 
@@ -154,13 +153,16 @@ cd frontend && pnpm dev   # http://localhost:5173
 
 ## API
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/chat` | POST | Chat (full response) |
-| `/api/chat/stream` | POST | Chat with SSE token streaming |
-| `/api/sessions` | GET | List conversation sessions |
-| `/api/sessions/{id}` | DELETE | Delete a session |
-| `/health` | GET | Health check |
+| Endpoint                         | Method | Description                                                |
+| -------------------------------- | ------ | ---------------------------------------------------------- |
+| `/api/chat`                      | POST   | Chat (full response) — supports qa, calculate, quote modes |
+| `/api/chat/stream`               | POST   | Chat with SSE token streaming                              |
+| `/api/chat/{session_id}`         | DELETE | Delete a session and its quotes                            |
+| `/api/chat/sessions`             | GET    | List all sessions                                          |
+| `/api/chat/{session_id}/history` | GET    | Get message history for a session                          |
+| `/api/quotes/{filename}`         | GET    | Download generated quote (Word document)                   |
+| `/api/quotes/{session_id}`       | DELETE | Clean up quotes for a session                              |
+| `/health`                        | GET    | Health check                                               |
 
 ---
 
@@ -168,18 +170,19 @@ cd frontend && pnpm dev   # http://localhost:5173
 
 Evaluated 4 retrieval strategies on **50 custom test questions** using [RAGAS](https://docs.ragas.io/) metrics.
 
-| Retrieval Mode | Median Latency | Mean Latency | Answer Relevancy | Context Precision | Context Recall | Faithfulness |
-|----------------|---------------|-------------|-----------------|------------------|---------------|-------------|
-| Fulltext only | 146ms | 149ms | 0.649 | 1.000 | 1.0 | 1.0 |
-| Vector only | 2,032ms | 2,695ms | 0.789 | 1.000 | 1.0 | 1.0 |
-| Graph + Vector | 1,406ms | 1,961ms | 0.855 | 1.000 | 1.0 | 1.0 |
-| **Graph + Vector + Fulltext**   | **1,523ms** | **1,839ms** | **0.884** | **1.000** | **1.0** | **1.0** |
+| Retrieval Mode                | Median Latency | Mean Latency | Answer Relevancy | Context Precision | Context Recall | Faithfulness |
+| ----------------------------- | -------------- | ------------ | ---------------- | ----------------- | -------------- | ------------ |
+| Fulltext only                 | 146ms          | 149ms        | 0.649            | 1.000             | 1.0            | 1.0          |
+| Vector only                   | 2,032ms        | 2,695ms      | 0.789            | 1.000             | 1.0            | 1.0          |
+| Graph + Vector                | 1,406ms        | 1,961ms      | 0.855            | 1.000             | 1.0            | 1.0          |
+| **Graph + Vector + Fulltext** | **1,523ms**    | **1,839ms**  | **0.884**        | **1.000**         | **1.0**        | **1.0**      |
 
 **Key takeaways:**
+
 - **Hybrid (Graph + Vector + Fulltext)** achieves the highest answer relevancy (+11.9% over vector-only) while being ~25% faster at median latency
 - **Fulltext-only** is fastest but has the lowest relevancy — poor at semantic queries
 - **Context Precision / Recall / Faithfulness** are near-perfect across all modes, meaning retrieved chunks are always relevant and answers stay grounded
 
 > **Design decision:** The hybrid mode adds ~1.4s over fulltext-only — a deliberate trade-off for significantly higher answer relevancy. At ~1.5s median retrieval latency, the UX remains responsive and acceptable for a domain-specific internal tool.
 
-*Internal use — Hai Phong Radio and Television Station · v0.1.0 · April 2026*
+_Internal use — Hai Phong Radio and Television Station · v0.1.0 · April 2026_
