@@ -60,6 +60,10 @@ Quote mode extracts customer information and pricing details from the conversati
 
 **Example:** `"Hãy tạo báo giá cho khách hàng ABC với giá gói HP1 trong tháng..."` → Generated Word doc with full pricing breakdown
 
+![Quote generation flow](assets/quote_generation.png)
+
+![Bills report output](assets/bills_report.png)
+
 ---
 
 ## Stack
@@ -67,7 +71,7 @@ Quote mode extracts customer information and pricing details from the conversati
 | Layer           | Technology                                                    |
 | --------------- | ------------------------------------------------------------- |
 | Backend         | Python, FastAPI, LangGraph                                    |
-| LLM             | Viettel AI API                                                |
+| LLM             | GPT-OSS-120B                                                  |
 | Embedding       | `AITeamVN/Vietnamese_Embedding_v2` (self-hosted via Infinity) |
 | Knowledge Graph | Neo4j (AuraDB)                                                |
 | Frontend        | React, Vite, TypeScript, Tailwind CSS                         |
