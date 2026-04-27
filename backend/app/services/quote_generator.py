@@ -150,8 +150,6 @@ class QuoteGenerator:
         run.font.size = Pt(10)
         run.font.name = "Times New Roman"
 
-        doc.add_paragraph()
-
     def _add_title(self, doc: Document, price_list: str):
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -163,8 +161,6 @@ class QuoteGenerator:
         run.bold = True
         run.font.size = Pt(14)
         run.font.name = "Times New Roman"
-
-        doc.add_paragraph()
 
     def _add_date(self, doc: Document):
         now = datetime.now()
@@ -185,8 +181,6 @@ class QuoteGenerator:
             p3 = doc.add_paragraph()
             run = p3.add_run("Lời đầu tiên xin chân thành cảm ơn Quý cơ quan, chúng tôi xin được gửi báo giá hỗ trợ tuyên truyền như sau:")
             run.font.name = "Times New Roman"
-
-        doc.add_paragraph()
 
     def _add_contract_info(self, doc: Document, contract_start: Optional[str], contract_end: Optional[str]):
         p = doc.add_paragraph()
@@ -295,8 +289,6 @@ class QuoteGenerator:
                     run.font.size = Pt(10)
                     run.font.name = "Times New Roman"
 
-        doc.add_paragraph()
-
     def _add_total_and_words(self, doc: Document, items: List[Dict[str, Any]], price_list: str):
         total = 0
         for item in items:
@@ -315,24 +307,18 @@ class QuoteGenerator:
             run = p2.add_run("- Giá trên đã bao gồm VAT.")
             run.font.name = "Times New Roman"
 
-        doc.add_paragraph()
-
     def _add_contact(self, doc: Document):
         p = doc.add_paragraph()
         run = p.add_run("Xin vui lòng liên hệ: Phòng Dịch vụ")
         run.font.name = "Times New Roman"
-        doc.add_paragraph()
 
         p = doc.add_paragraph()
         run = p.add_run("Địa chỉ: Số 2 Nguyễn Bình, phường Lê Chân, Hải Phòng")
         run.font.name = "Times New Roman"
-        doc.add_paragraph()
 
         p = doc.add_paragraph()
         run = p.add_run("Điện thoại: 0912.023.771")
         run.font.name = "Times New Roman"
-
-        doc.add_paragraph()
 
     def _add_signature(self, doc: Document):
         p = doc.add_paragraph()
@@ -340,12 +326,10 @@ class QuoteGenerator:
         run = p.add_run("KT.GIÁM ĐỐC")
         run.font.name = "Times New Roman"
         doc.add_paragraph()
-        doc.add_paragraph()
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         run = p.add_run("PHÓ GIÁM ĐỐC")
         run.font.name = "Times New Roman"
-        doc.add_paragraph()
         doc.add_paragraph()
         doc.add_paragraph()
         p = doc.add_paragraph()
