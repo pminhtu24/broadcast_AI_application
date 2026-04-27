@@ -7,6 +7,37 @@ import { Download } from "lucide-react";
 import type { ChatMessage } from "@/types";
 import { downloadQuote } from "@/lib/api";
 
+function normalizeMathContent(content: string): string {
+    return content
+        .normalize("NFC")
+        // Normalize Unicode spaces frequently returned by LLM output
+        .replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000]/g, " ")
+        // Clean latex text wrappers in normal/table text
+        .replace(/\\+text\s*\{([^{}]*)\}/g, "$1")
+        // Unwrap inline latex delimiters: \( ... \) -> ...
+        .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, "$1")
+        // Convert latex thousand grouping: 28{,}000{,}000 -> 28.000.000
+        .replace(/(\d)\s*\{,\}\s*(\d)/g, "$1.$2")
+        // Remove redundant parentheses around plain formatted numbers: (500.000) -> 500.000
+        .replace(/\(\s*(\d{1,3}(?:\.\d{3})+)\s*\)/g, "$1")
+        // Convert escaped display delimiters: \[ ... \] -> $$ ... $$
+        .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, expr: string) => `$$${expr}$$`)
+        // Convert display math in bracket form: [ ... ] -> $$ ... $$ (single or multi-line block)
+        .replace(/(^|\n)\s*\[\s*([\s\S]*?)\s*\]\s*(?=\n|$)/g, (_, prefix: string, expr: string) => {
+            const normalizedExpr = expr
+                // In aligned blocks, model often emits "\[4pt]" instead of "\\[4pt]"
+                .replace(/\\\[(\d+pt)\]/g, "\\\\[$1]");
+            return `${prefix}$$${normalizedExpr}$$`;
+        })
+        // Fix common LLM typo in formulas: ";=;" / ";-;" -> "=" / "-"
+        .replace(/;\s*=\s*;/g, "=")
+        .replace(/;\s*-\s*;/g, "-")
+        // KaTeX/remark-math handles line breaks inside aligned with \\
+        .replace(/\\\s+(?=\\text)/g, "\\\\ ")
+        .replace(/\\\s+\n/g, "\\\\\n")
+        .trim();
+}
+
 interface Props {
     message: ChatMessage;
     onSuggestionClick?: (suggestion: string) => void;
@@ -14,6 +45,9 @@ interface Props {
 
 export function Message({ message, onSuggestionClick }: Props) {
     const isUser = message.role === "user";
+    const normalizedContent = message.content
+        ? normalizeMathContent(message.content)
+        : "";
 
     if (isUser) {
         return (
@@ -58,7 +92,15 @@ export function Message({ message, onSuggestionClick }: Props) {
                     <>
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm, remarkMath]}
-                            rehypePlugins={[rehypeKatex]}
+                            rehypePlugins={[
+                                [
+                                    rehypeKatex,
+                                    {
+                                        throwOnError: false,
+                                        strict: "ignore",
+                                    },
+                                ],
+                            ]}
                             components={{
                                 p: ({ children }) => (
                                     <p className="mb-2 last:mb-0 text-ink">{children}</p>
@@ -80,15 +122,6 @@ export function Message({ message, onSuggestionClick }: Props) {
                                 code: ({ children, className, ...props }) => {
                                     const code = String(children);
                                     const isInline = !(props as any).nodeName || (props as any).nodeName === '#text';
-                                    if (code.includes('\\text') || code.includes('\\times') || code.includes('\\div')) {
-                                        const clean = code
-                                            .replace(/\\text\{([^}]*)\}/g, '$1')
-                                            .replace(/\\times/g, '×')
-                                            .replace(/\\div/g, '÷')
-                                            .replace(/\{,\}/g, '.')
-                                            .replace(/,/g, '.');
-                                        return <span className="text-ink">{clean}</span>;
-                                    }
                                     if (isInline) {
                                         return <code className="font-mono text-xs bg-surface-3 px-1.5 py-0.5 rounded text-ink">{code}</code>;
                                     }
@@ -109,9 +142,14 @@ export function Message({ message, onSuggestionClick }: Props) {
                                 td: ({ children }) => (
                                     <td className="border border-border px-3 py-1.5 text-ink">{children}</td>
                                 ),
+                                pre: ({ children }) => (
+                                    <pre className="bg-transparent p-0 m-0 font-sans text-sm text-ink overflow-visible">
+                                        <code>{children}</code>
+                                    </pre>
+                                ),
                             }}
                         >
-                            {message.content}
+                            {normalizedContent}
                         </ReactMarkdown>
                         {/* Streaming cursor */}
                         {message.isStreaming && (
