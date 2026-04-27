@@ -11,7 +11,6 @@ interface Props {
 export function ChatInput({ onSend, isLoading, onStop }: Props) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // Auto-resize textarea
     useEffect(() => {
         const el = textareaRef.current;
         if (!el) return;
@@ -37,29 +36,35 @@ export function ChatInput({ onSend, isLoading, onStop }: Props) {
     };
 
     return (
-        <div className="px-4 pb-4 pt-2">
-            <div className="flex items-end gap-2 bg-surface-2 border border-border hover:border-border-strong focus-within:border-accent/50 rounded-2xl px-4 py-3 transition-colors">
+        <div className="px-5 pb-5 pt-2">
+            <div className={clsx(
+                "flex items-end gap-3 bg-white border rounded-2xl px-4 py-3 transition-all duration-150",
+                "border-border hover:border-border-strong focus-within:border-border-accent focus-within:shadow-input"
+            )}>
                 <textarea
                     ref={textareaRef}
                     onKeyDown={handleKey}
                     placeholder="Nhập câu hỏi về quảng cáo..."
                     disabled={isLoading}
                     rows={1}
-                    className="flex-1 bg-transparent text-sm text-white placeholder-white/25 resize-none outline-none leading-relaxed min-h-[22px] disabled:opacity-50"
+                    className="flex-1 bg-transparent text-sm text-ink placeholder-ink-3 resize-none outline-none leading-relaxed min-h-[22px] disabled:opacity-60 font-serif"
                 />
                 <button
                     onClick={isLoading ? onStop : handleSend}
                     className={clsx(
-                        "shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all",
+                        "shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150",
                         isLoading
-                            ? "bg-white/10 hover:bg-white/15 text-white/60"
-                            : "bg-accent hover:bg-accent-hover text-white"
+                            ? "bg-surface-2 hover:bg-surface-3 text-ink-2"
+                            : "bg-teal hover:bg-teal-mid text-white shadow-sm"
                     )}
                 >
-                    {isLoading ? <Square size={12} /> : <ArrowUp size={14} />}
+                    {isLoading
+                        ? <Square size={11} />
+                        : <ArrowUp size={14} />
+                    }
                 </button>
             </div>
-            <p className="text-center text-[10px] text-white/20 mt-2">
+            <p className="text-center text-[10px] text-ink-3 mt-2">
                 Enter để gửi · Shift+Enter xuống dòng
             </p>
         </div>

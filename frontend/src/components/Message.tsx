@@ -18,7 +18,7 @@ export function Message({ message, onSuggestionClick }: Props) {
     if (isUser) {
         return (
             <div className="flex justify-end animate-slide-up">
-                <div className="max-w-[75%] px-4 py-2.5 rounded-2xl rounded-br-sm bg-accent text-white text-sm leading-relaxed">
+                <div className="max-w-[75%] px-4 py-2.5 rounded-2xl rounded-br-sm bg-teal text-white text-sm leading-relaxed">
                     {message.content}
                 </div>
             </div>
@@ -51,7 +51,7 @@ export function Message({ message, onSuggestionClick }: Props) {
                     "max-w-[85%] px-4 py-3 rounded-2xl rounded-tl-sm text-sm leading-relaxed",
                     message.error
                         ? "bg-red-500/10 border border-red-500/20 text-red-400"
-                        : "bg-surface-2 text-white/85"
+                        : "bg-surface-2 text-ink"
                 )}
             >
                 {message.content ? (
@@ -61,28 +61,39 @@ export function Message({ message, onSuggestionClick }: Props) {
                             rehypePlugins={[rehypeKatex]}
                             components={{
                                 p: ({ children }) => (
-                                    <p className="mb-2 last:mb-0">{children}</p>
+                                    <p className="mb-2 last:mb-0 text-ink">{children}</p>
                                 ),
                                 ul: ({ children }) => (
-                                    <ul className="list-disc list-inside mb-2 space-y-1">
+                                    <ul className="list-disc list-inside mb-2 space-y-1 text-ink">
                                         {children}
                                     </ul>
                                 ),
                                 ol: ({ children }) => (
-                                    <ol className="list-decimal list-inside mb-2 space-y-1">
+                                    <ol className="list-decimal list-inside mb-2 space-y-1 text-ink">
                                         {children}
                                     </ol>
                                 ),
                                 strong: ({ children }) => (
-                                    <strong className="font-semibold text-white">
-                                        {children}
-                                    </strong>
+                                    <strong className="font-semibold text-ink">
+                                        {children}</strong>
                                 ),
-                                code: ({ children }) => (
-                                    <code className="font-mono text-xs bg-surface-3 px-1.5 py-0.5 rounded text-accent">
-                                        {children}
-                                    </code>
-                                ),
+                                code: ({ children, className, ...props }) => {
+                                    const code = String(children);
+                                    const isInline = !(props as any).nodeName || (props as any).nodeName === '#text';
+                                    if (code.includes('\\text') || code.includes('\\times') || code.includes('\\div')) {
+                                        const clean = code
+                                            .replace(/\\text\{([^}]*)\}/g, '$1')
+                                            .replace(/\\times/g, '×')
+                                            .replace(/\\div/g, '÷')
+                                            .replace(/\{,\}/g, '.')
+                                            .replace(/,/g, '.');
+                                        return <span className="text-ink">{clean}</span>;
+                                    }
+                                    if (isInline) {
+                                        return <code className="font-mono text-xs bg-surface-3 px-1.5 py-0.5 rounded text-ink">{code}</code>;
+                                    }
+                                    return <code className={className}>{children}</code>;
+                                },
                                 table: ({ children }) => (
                                     <div className="overflow-x-auto my-2">
                                         <table className="text-xs border-collapse w-full">
@@ -91,12 +102,12 @@ export function Message({ message, onSuggestionClick }: Props) {
                                     </div>
                                 ),
                                 th: ({ children }) => (
-                                    <th className="border border-border px-3 py-1.5 text-left text-white/60 font-medium bg-surface-3">
+                                    <th className="border border-border px-3 py-1.5 text-left text-ink font-bold bg-surface-3">
                                         {children}
                                     </th>
                                 ),
                                 td: ({ children }) => (
-                                    <td className="border border-border px-3 py-1.5">{children}</td>
+                                    <td className="border border-border px-3 py-1.5 text-ink">{children}</td>
                                 ),
                             }}
                         >
@@ -129,12 +140,12 @@ export function Message({ message, onSuggestionClick }: Props) {
                             key={i}
                             className="flex items-start gap-2 px-3 py-2 rounded-lg bg-surface-1 border border-border text-[11px]"
                         >
-                            <div className="w-1 h-1 rounded-full bg-accent mt-1.5 shrink-0" />
+                            <div className="w-1 h-1 rounded-full bg-teal-light mt-1.5 shrink-0" />
                             <div className="flex-1 min-w-0">
-                                <span className="text-white/50 font-mono truncate block">
+                                <span className="text-ink-2 font-mono truncate block">
                                     {c.filename}
                                 </span>
-                                <span className="text-white/25">
+                                <span className="text-ink-3">
                                     score {c.score.toFixed(2)} · {c.search_type}
                                 </span>
                             </div>
@@ -146,19 +157,19 @@ export function Message({ message, onSuggestionClick }: Props) {
             {/* Quote Files Download */}
             {message.quoteFiles && message.quoteFiles.length > 0 && (
                 <div className="flex flex-col gap-2 max-w-[85%] mt-2">
-                    <span className="text-[11px] text-white/40 font-medium">
+                    <span className="text-[11px] text-ink-2 font-medium">
                         File báo giá
                     </span>
                     <div className="flex flex-wrap gap-2">
                         {message.quoteFiles.map((file, i) => (
                             <button
                                 key={i}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-1 border border-accent/30 text-xs text-white/80 hover:text-white hover:border-accent transition-colors cursor-pointer"
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-1 border border-teal-light/30 text-xs text-ink hover:text-teal hover:border-teal-light transition-colors cursor-pointer"
                                 onClick={() => downloadQuote(file.url, file.filename)}
                             >
-                                <Download className="w-4 h-4 text-accent" />
+                                <Download className="w-4 h-4 text-teal-light" />
                                 <span>{file.price_list}</span>
-                                <span className="text-white/40">DOCX</span>
+                                <span className="text-ink-3">DOCX</span>
                             </button>
                         ))}
                     </div>
@@ -168,14 +179,14 @@ export function Message({ message, onSuggestionClick }: Props) {
             {/* Suggestions */}
             {message.suggestions && message.suggestions.length > 0 && (
                 <div className="flex flex-col gap-1.5 max-w-[85%]">
-                    <span className="text-[11px] text-white/40 font-medium">
+                    <span className="text-[11px] text-ink-2 font-medium">
                         Câu hỏi gợi ý
                     </span>
                     <div className="flex flex-wrap gap-2">
                         {message.suggestions.map((s, i) => (
                             <button
                                 key={i}
-                                className="px-3 py-1.5 rounded-full bg-surface-1 border border-border text-xs text-white/70 hover:text-white hover:border-accent/50 transition-colors cursor-pointer"
+                                className="px-3 py-1.5 rounded-full bg-surface-1 border border-border text-xs text-ink-2 hover:text-ink hover:border-teal-light/50 transition-colors cursor-pointer"
                                 onClick={() => onSuggestionClick?.(s)}
                             >
                                 {s}

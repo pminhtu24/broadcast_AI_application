@@ -190,7 +190,7 @@ async def chat_stream(request: ChatRequest):
             # generate suggestions after streamming
             # -----------------------------------------------------------
             logger.info(f"[Stream] Generating suggestions for session={session_id[:8]}")
-            suggestions = await generate_suggestions(user_message, full_answer)
+            suggestions = await generate_suggestions(user_message, full_answer or "")
             if suggestions:
                 yield _sse({"type": "suggestions", "data": suggestions})
 
@@ -213,7 +213,7 @@ async def chat_stream(request: ChatRequest):
             # save session (after streaming finnished)
             # -----------------------------------------------------------
             session_service.save_turn(session_id, user_message, full_answer, intent)
-            logger.info(f"[Stream] Done | session={session_id[:8]} | intent={intent} | {len(full_answer)} chars")
+            logger.info(f"[Stream] Done | session={session_id[:8]} | intent={intent} | {len(full_answer or '')} chars")
  
         except Exception as e:
             logger.error(f"[Stream] Error: {e}", exc_info=True)

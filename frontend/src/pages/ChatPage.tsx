@@ -27,7 +27,7 @@ export function ChatPage() {
     const isEmpty = messages.length === 0;
 
     return (
-        <div className="flex h-screen bg-surface text-white font-sans overflow-hidden">
+        <div className="flex h-screen bg-surface text-ink font-serif overflow-hidden">
             <Sidebar
                 sessions={sessions}
                 activeSessionId={sessionId}
@@ -41,15 +41,15 @@ export function ChatPage() {
                 {/* Topbar */}
                 <header className="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
                     <div>
-                        <h1 className="text-sm font-semibold text-white">
+                        <h1 className="text-sm font-semibold text-ink font-serif">
                             Trợ lý Quảng cáo
                         </h1>
-                        <p className="text-xs text-white/35">
+                        <p className="text-xs text-ink-2">
                             Hỏi về giá, dịch vụ, hoặc yêu cầu tính toán chi phí
                         </p>
                     </div>
                     {sessionId && (
-                        <span className="text-[10px] font-mono text-white/25">
+                        <span className="text-[10px] font-mono text-ink-3">
                             {sessionId.slice(0, 8)}
                         </span>
                     )}
@@ -89,7 +89,7 @@ function EmptyState({ onSuggestion }: { onSuggestion: (s: string) => void }) {
     return (
         <div className="flex flex-col items-center justify-center flex-1 gap-8 py-16 animate-fade-in">
             <div className="text-center">
-                <div className="w-12 h-12 rounded-2xl bg-accent/15 border border-accent/20 flex items-center justify-center mx-auto mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-teal-light/15 border border-teal-light/20 flex items-center justify-center mx-auto mb-4">
                     <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
                         <path
                             d="M11 2L20 6.5V15.5L11 20L2 15.5V6.5L11 2Z"
@@ -100,10 +100,10 @@ function EmptyState({ onSuggestion }: { onSuggestion: (s: string) => void }) {
                         <circle cx="11" cy="11" r="3" fill="#3b82f6" />
                     </svg>
                 </div>
-                <h2 className="text-lg font-semibold text-white mb-1">
+                <h2 className="text-lg font-semibold text-ink mb-1">
                     Xin chào! Tôi có thể giúp gì cho bạn?
                 </h2>
-                <p className="text-sm text-white/40">
+                <p className="text-sm text-ink-2">
                     Hỏi về bảng giá, dịch vụ, hoặc yêu cầu tính toán chi phí quảng cáo
                 </p>
             </div>
@@ -113,7 +113,7 @@ function EmptyState({ onSuggestion }: { onSuggestion: (s: string) => void }) {
                     <button
                         key={s}
                         onClick={() => onSuggestion(s)}
-                        className="text-left px-4 py-3 rounded-xl bg-surface-2 border border-border hover:border-accent/30 hover:bg-surface-3 text-xs text-white/60 hover:text-white/90 transition-all leading-relaxed"
+                        className="text-left px-4 py-3 rounded-xl bg-surface-1 border-2 border-teal hover:border-teal-mid hover:bg-surface-2 text-xs text-ink hover:text-teal transition-all leading-relaxed"
                     >
                         {s}
                     </button>

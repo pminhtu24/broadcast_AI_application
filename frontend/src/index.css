@@ -1,32 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 * {
     box-sizing: border-box;
+    font-family: Georgia, Cambria, Times New Roman, serif;
 }
 
-html,
-body,
-#root {
+html, body, #root {
     height: 100%;
     margin: 0;
+    background: #F0F5F4;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-    width: 4px;
+.katex {
+    font-size: 0.95em !important;
+    color: inherit !important;
 }
 
-::-webkit-scrollbar-track {
-    background: transparent;
+.katex-error {
+    color: inherit !important;
+    background: rgba(0,0,0,0.05);
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: Georgia, serif !important;
 }
 
-::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(13,61,56,0.15); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(13,61,56,0.25); }
 
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
+/* KaTeX override for teal theme */
+.katex { font-size: 0.95em !important; }
