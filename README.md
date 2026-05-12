@@ -75,6 +75,7 @@ Quote mode extracts customer information and pricing details from the conversati
 | Embedding       | `AITeamVN/Vietnamese_Embedding_v2` (self-hosted via Infinity) |
 | Knowledge Graph | Neo4j (AuraDB)                                                |
 | Frontend        | React, Vite, TypeScript, Tailwind CSS                         |
+| Monitoring      | LangSmith                                                     |
 
 ---
 
@@ -136,6 +137,7 @@ cd frontend && pnpm install && cd ..
 
 # 2. Configure environment
 cp backend/.env.example backend/.env   # fill in NEO4J_*, INFINITY_URL, VIETTEL_*
+# Optional: set LANGSMITH_TRACING=true and LANGSMITH_API_KEY for monitoring
 
 # 3. Start embedding server
 docker run -d -p 7997:7997 --gpus all \

@@ -2,6 +2,7 @@ import logging
 import json
 from typing import Any, AsyncGenerator
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, BaseMessage
+from langsmith import traceable
 from app.graph.state import ChatState
 from app.schemas.chat import CitationSource, ChatMessage
 from app.services.retriever import hybrid_retrieve, format_for_llm
@@ -39,6 +40,7 @@ def _build_messages_with_history(
 # Node 1: load_session
 # Load conversation history from Neo4j before starting the graph
 
+@traceable(name="load_session_node", run_type="chain")
 def load_session_node(state: ChatState) -> dict[str, Any]:
     session_id = state.get("session_id", "")
     if not session_id:
@@ -51,6 +53,7 @@ def load_session_node(state: ChatState) -> dict[str, Any]:
 
 # Node 2: classify_intent
 
+@traceable(name="classify_intent_node", run_type="chain")
 def classify_intent_node(state: ChatState) -> dict[str, Any]:
     messages = state.get("messages", [])
     user_message = get_last_user_message(messages)
@@ -80,6 +83,7 @@ def classify_intent_node(state: ChatState) -> dict[str, Any]:
 
 # Node 3: retrieve
 
+@traceable(name="retrieve_node", run_type="retriever")
 def retrieve_node(state: ChatState) -> dict[str, Any]:
     messages = state.get("messages", [])
     user_message = get_last_user_message(messages)
@@ -111,6 +115,7 @@ def retrieve_node(state: ChatState) -> dict[str, Any]:
 
 # Node 4: calculate
 
+@traceable(name="calculate_node", run_type="chain")
 def calculate_node(state: ChatState) -> dict[str, Any]:
     """
     Node responsible for handling the 'calculate' intent using function calling.
@@ -201,6 +206,7 @@ def calculate_node(state: ChatState) -> dict[str, Any]:
 
 # Node 5a: generate (sync — use for /api/chat)
 
+@traceable(name="generate_node", run_type="chain")
 def generate_node(state: ChatState) -> dict[str, Any]:
     messages = state.get("messages", [])
     user_message = get_last_user_message(messages)
@@ -298,6 +304,7 @@ async def generate_stream_and_collect(
         yield ("done", None)
 
 
+@traceable(name="generate_suggestions", run_type="chain")
 async def generate_suggestions(
     user_message: str,
     answer: str,
@@ -353,6 +360,7 @@ Khi người dùng yêu cầu xuất báo giá, bạn cần:
 """
 
 
+@traceable(name="parse_customer_info", run_type="chain")
 def _parse_customer_info_from_text(text: str, history: list) -> dict | None:
     """Parse customer info from user message using LLM."""
     import json
@@ -382,6 +390,7 @@ Trả về:"""
     return None
 
 
+@traceable(name="quote_node", run_type="chain")
 def quote_node(state: ChatState) -> dict[str, Any]:
     from langchain_core.messages import SystemMessage, AIMessage
     from app.services.quote_generator import generate_quote_docx
@@ -538,6 +547,7 @@ def quote_node(state: ChatState) -> dict[str, Any]:
 # Save new turn to Neo4j after generating the response
 
 
+@traceable(name="save_session_node", run_type="chain")
 def save_session_node(state: ChatState) -> dict[str, Any]:
     """
     Save conversation turn to Neo4j.

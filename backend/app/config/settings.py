@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     VIETTEL_BASE_URL: str
     VIETTEL_API_KEY: SecretStr
     VIETTEL_MODEL: str
+    LANGSMITH_TRACING: bool = False
+    LANGSMITH_API_KEY: SecretStr | None = None
+    LANGSMITH_PROJECT: str = "broadcast-ai-dev"
+    LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
 
 
 @lru_cache()

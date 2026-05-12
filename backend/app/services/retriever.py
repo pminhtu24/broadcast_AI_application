@@ -2,6 +2,7 @@ import logging
 from typing import List, Dict, Optional
 from langchain_neo4j import Neo4jGraph, Neo4jVector
 from langchain_community.embeddings import InfinityEmbeddings
+from langsmith import traceable
 from app.config.settings import get_settings
 from app.config.constants import (
     CHAT_DEFAULT_MODE,
@@ -64,6 +65,7 @@ def get_vector_store(mode: str = CHAT_DEFAULT_MODE) -> Neo4jVector:
     return _vector_store_instances[mode]
 
 
+@traceable(name="vector_search", run_type="retriever")
 def vector_search(
     question: str,
     mode: str = CHAT_DEFAULT_MODE,
@@ -94,6 +96,7 @@ def vector_search(
     return results
 
 
+@traceable(name="fulltext_search", run_type="retriever")
 def fulltext_search(question: str, k: int = 3) -> List[Dict]:
     graph_db = get_graph_db()
     results = []
@@ -129,6 +132,7 @@ def fulltext_search(question: str, k: int = 3) -> List[Dict]:
     return results
 
 
+@traceable(name="hybrid_retrieve", run_type="retriever")
 def hybrid_retrieve(
     question: str,
     top_k: int = VECTOR_SEARCH_TOP_K,

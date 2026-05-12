@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import health, chat, quote
+from app.config.langsmith import configure_langsmith
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,6 +21,7 @@ APP_VERSION = "0.1.0"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_langsmith()
     logger.info(f"Starting Broadcast AI Backend v{APP_VERSION}")
     yield
     logger.info("Shutting down Broadcast AI Backend")

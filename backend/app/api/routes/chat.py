@@ -40,7 +40,7 @@ async def chat(request: ChatRequest):
             }
 
         # Run entire workflow
-        result = invoke_graph(initial_state)
+        result = invoke_graph(initial_state, endpoint="chat")
 
         answer = result.get("answer") or "Xin lỗi, tôi không tìm thấy thông tin liên quan."
         citations_raw = result.get("citations", [])
@@ -101,20 +101,26 @@ async def chat_stream(request: ChatRequest):
             # -----------------------------------------------------------
             # load_session + classify + retrieve (parallel)
             # -----------------------------------------------------------
-            state = await prepare_for_stream({
-                "messages": [HumanMessage(content=request.message)],
-                "session_id": session_id,
-                "history": [],
-                "intent": None,
-                "retrieved_context": None,
-                "citations": [],
-                "customer_info": None,
-                "quote_items": [],
-                "quote_status": None,
-                "quote_file_path": None,
-                "answer": None,
-                "error": None,
-            })
+            state = await prepare_for_stream(
+                {
+                    "messages": [HumanMessage(content=request.message)],
+                    "session_id": session_id,
+                    "history": [],
+                    "intent": None,
+                    "retrieved_context": None,
+                    "citations": [],
+                    "customer_info": None,
+                    "quote_items": [],
+                    "quote_status": None,
+                    "quote_file_path": None,
+                    "answer": None,
+                    "error": None,
+                },
+                langsmith_extra={
+                    "metadata": {"session_id": session_id, "endpoint": "chat_stream"},
+                    "tags": ["broadcast-ai", "chat_stream"],
+                },
+            )
  
             intent = state.get("intent") or "qa"
             context = state.get("retrieved_context")
@@ -149,6 +155,7 @@ async def chat_stream(request: ChatRequest):
                     "history": history,
                     "retrieved_context": context,
                     "intent": intent,
+                    "session_id": session_id,
                 })
                 full_answer = result.get("answer", "")
                 yield _sse({"type": "token", "content": full_answer})

@@ -1,5 +1,6 @@
 import logging
 from langgraph.graph import StateGraph, END
+from langsmith import traceable
 from app.graph.state import ChatState
 from app.graph.nodes import (
     load_session_node,
@@ -75,11 +76,25 @@ def get_compiled_graph():
     return compiled_graph
 
 
-def invoke_graph(state: dict) -> dict:
+def _trace_config(state: dict, endpoint: str) -> dict:
+    session_id = state.get("session_id", "")
+    return {
+        "run_name": "broadcast_ai_chat_workflow",
+        "tags": ["broadcast-ai", endpoint],
+        "metadata": {
+            "session_id": session_id,
+            "endpoint": endpoint,
+        },
+    }
+
+
+def invoke_graph(state: dict, endpoint: str = "chat") -> dict:
     """Use for /api/chat — sync, return full response."""
     graph = get_compiled_graph()
-    return graph.invoke(state)
+    return graph.invoke(state, config=_trace_config(state, endpoint))
 
+
+@traceable(name="prepare_for_stream", run_type="chain")
 async def prepare_for_stream(state: dict) -> dict:
     """
     Use for /api/chat/stream — run graph until BEFORE generate:
