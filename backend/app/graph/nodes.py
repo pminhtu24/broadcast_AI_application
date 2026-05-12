@@ -497,6 +497,7 @@ def quote_node(state: ChatState) -> dict[str, Any]:
                             items=docx_items,
                             price_list=price_list,
                             customer_address=data.get("customer_address"),
+                            session_id=session_id,
                         )
                         file_paths.append(filename)
 

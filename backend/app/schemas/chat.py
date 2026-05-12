@@ -27,7 +27,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str = Field(..., description="AI response")
     citations: List[CitationSource] = Field(..., description="Source citations")
-    intent: Literal["qa", "calculate"] = Field(..., description="Detected user intent")
+    intent: Literal["qa", "calculate", "quote"] = Field(..., description="Detected user intent")
     session_id: str = Field(..., description="Session ID for this conversation")
 
 

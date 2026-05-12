@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from docx import Document
@@ -77,6 +78,14 @@ def format_currency(amount: float) -> str:
     return f"{amount:,.0f}".replace(",", ".")
 
 
+def safe_filename_part(value: Optional[str], fallback: str) -> str:
+    if not value:
+        return fallback
+    cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", value.strip())
+    cleaned = cleaned.strip("_")
+    return cleaned or fallback
+
+
 class QuoteGenerator:
     def __init__(self, output_dir: str = "backend/generated_quotes"):
         self.output_dir = output_dir
@@ -92,8 +101,10 @@ class QuoteGenerator:
         contract_end: Optional[str] = None,
         session_id: Optional[str] = None
     ) -> str:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"bao_gia_{timestamp}.docx"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        customer_part = safe_filename_part(customer_name, "khach_hang")[:60]
+        price_part = safe_filename_part(price_list, "unknown")
+        filename = f"bao_gia_{customer_part}_qd{price_part}_{timestamp}.docx"
         filepath = os.path.join(self.output_dir, filename)
 
         doc = Document()
@@ -344,7 +355,8 @@ def generate_quote_docx(
     price_list: str,
     customer_address: Optional[str] = None,
     contract_start: Optional[str] = None,
-    contract_end: Optional[str] = None
+    contract_end: Optional[str] = None,
+    session_id: Optional[str] = None,
 ) -> str:
     generator = QuoteGenerator()
     return generator.generate(
@@ -353,5 +365,6 @@ def generate_quote_docx(
         price_list=price_list,
         customer_address=customer_address,
         contract_start=contract_start,
-        contract_end=contract_end
+        contract_end=contract_end,
+        session_id=session_id,
     )
