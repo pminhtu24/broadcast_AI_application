@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "version": "2026",
+    "price_list_name": "packages_dnhp",
+    "regulation": "QĐ 415/QĐ-BPTTH",
+    "effective_date": "2026-01-01",
+    "description": "Gói tích hợp dành cho doanh nghiệp Hải Phòng"
+  },
+  "packages": {
+    "goi_1": {
+      "price":        30000000,
+      "slots":        75,
+      "banner_weeks": 2,
+      "max_days":     60,
+      "description":  "Gói 1 — 75 lần phát, banner 2 tuần, tối đa 60 ngày"
+    },
+    "goi_2": {
+      "price":        50000000,
+      "slots":        135,
+      "banner_weeks": 4,
+      "max_days":     60,
+      "description":  "Gói 2 — 135 lần phát, banner 4 tuần, tối đa 60 ngày"
+    },
+    "goi_3": {
+      "price":        100000000,
+      "slots":        300,
+      "banner_weeks": 8,
+      "max_days":     90,
+      "description":  "Gói 3 — 300 lần phát, banner 8 tuần, tối đa 90 ngày"
+    }
+  }
+}

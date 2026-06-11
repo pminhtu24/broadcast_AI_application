@@ -70,9 +70,13 @@ export function streamChat(
                             case "meta":
                                 callbacks.onMeta(event.intent, event.session_id);
                                 break;
-                            case "token":
-                                callbacks.onToken(event.content);
+                            case "token": {
+                                const token = (event as { content?: unknown }).content;
+                                if (typeof token === "string" && token.length > 0) {
+                                    callbacks.onToken(token);
+                                }
                                 break;
+                            }
                             case "citations":
                                 callbacks.onCitations(event.data);
                                 break;

@@ -7,35 +7,84 @@ import { Download } from "lucide-react";
 import type { ChatMessage } from "@/types";
 import { downloadQuote } from "@/lib/api";
 
+const INVALID_VALUE_RE = /(?:undefined|null|nan)/i;
+
+function cleanLatexFragment(fragment: string): string {
+    let text = fragment
+        .replace(/\\\{,\}/g, ".")
+        .replace(/\{,\}/g, ".")
+        .replace(/\\,/g, " ")
+        .replace(/\\\s/g, " ")
+        .replace(/\\%/g, "%")
+        .replace(/\\(?:times|cdot)\b/g, "x")
+        .replace(/\\(?:left|right)\b/g, "")
+        .replace(/\\begin\{(?:aligned|align|array|split)\}/g, "")
+        .replace(/\\end\{(?:aligned|align|array|split)\}/g, "")
+        .replace(/&/g, "")
+        .replace(/\\\\(?:\[[^\]]+\])?/g, "\n");
+
+    for (let i = 0; i < 5; i += 1) {
+        text = text.replace(
+            /\\(?:text|mathrm|mathbf|boldsymbol|textbf|emph|boxed)\s*\{([^{}]*)\}/g,
+            "$1"
+        );
+    }
+
+    return text
+        .replace(/[{}]/g, "")
+        .replace(/[ \t]+/g, " ")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+}
+
+function unwrapMathIfBusinessText(match: string, fragment: string): string {
+    const cleaned = cleanLatexFragment(fragment);
+    if (
+        INVALID_VALUE_RE.test(cleaned) ||
+        /(?:VND|VNĐ|đồng)/i.test(cleaned) ||
+        /\d/.test(cleaned) ||
+        /[%=x+\-]/.test(cleaned)
+    ) {
+        return cleaned;
+    }
+
+    return match;
+}
+
 function normalizeMathContent(content: string): string {
-    return content
+    let normalized = content
         .normalize("NFC")
         // Normalize Unicode spaces frequently returned by LLM output
         .replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000]/g, " ")
-        // Clean latex text wrappers in normal/table text
-        .replace(/\\+text\s*\{([^{}]*)\}/g, "$1")
-        // Unwrap inline latex delimiters: \( ... \) -> ...
-        .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, "$1")
+        .replace(/\r\n/g, "\n")
+        // Unwrap display/inline math when it contains business text or currency.
+        .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, unwrapMathIfBusinessText)
+        .replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, unwrapMathIfBusinessText)
+        .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, unwrapMathIfBusinessText)
+        .replace(/\$([^$\n]+)\$/g, unwrapMathIfBusinessText)
+        // Clean latex text wrappers in normal/table text.
+        .replace(/\\(?:text|mathrm|mathbf|boldsymbol|textbf|emph|boxed)\s*\{([^{}]*)\}/g, "$1")
         // Convert latex thousand grouping: 28{,}000{,}000 -> 28.000.000
-        .replace(/(\d)\s*\{,\}\s*(\d)/g, "$1.$2")
-        // Remove redundant parentheses around plain formatted numbers: (500.000) -> 500.000
-        .replace(/\(\s*(\d{1,3}(?:\.\d{3})+)\s*\)/g, "$1")
-        // Convert escaped display delimiters: \[ ... \] -> $$ ... $$
-        .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, expr: string) => `$$${expr}$$`)
-        // Convert display math in bracket form: [ ... ] -> $$ ... $$ (single or multi-line block)
-        .replace(/(^|\n)\s*\[\s*([\s\S]*?)\s*\]\s*(?=\n|$)/g, (_, prefix: string, expr: string) => {
-            const normalizedExpr = expr
-                // In aligned blocks, model often emits "\[4pt]" instead of "\\[4pt]"
-                .replace(/\\\[(\d+pt)\]/g, "\\\\[$1]");
-            return `${prefix}$$${normalizedExpr}$$`;
-        })
+        .replace(/(\d)\s*(?:\\\{,\}|\{,\})\s*(\d)/g, "$1.$2")
+        .replace(/\\,/g, " ")
+        .replace(/\\%/g, "%")
         // Fix common LLM typo in formulas: ";=;" / ";-;" -> "=" / "-"
         .replace(/;\s*=\s*;/g, "=")
         .replace(/;\s*-\s*;/g, "-")
-        // KaTeX/remark-math handles line breaks inside aligned with \\
+        // Keep malformed line-break escapes from leaking into plain text.
         .replace(/\\\s+(?=\\text)/g, "\\\\ ")
-        .replace(/\\\s+\n/g, "\\\\\n")
+        .replace(/\\\s+\n/g, "\\\\\n");
+
+    normalized = normalized
+        // In markdown tables, do not let missing values render as the word "undefined".
+        .replace(/\|\s*(?:undefined|null|nan)\s*(?:VND|VNĐ|đồng)?\s*(?=\|)/gi, "| — ")
+        // Remove standalone invalid-value lines, including old display-math remnants.
+        .replace(/(^|\n)[ \t]*(?:undefined|null|nan)[ \t]*(?:VND|VNĐ|đồng)?[ \t]*(?=\n|$)/gi, "$1")
+        .replace(/\b(?:undefined|null|nan)\s*(?:VND|VNĐ|đồng)?\b/gi, "—")
+        .replace(/\n{3,}/g, "\n\n")
         .trim();
+
+    return normalized;
 }
 
 interface Props {
@@ -70,8 +119,8 @@ export function Message({ message, onSuggestionClick }: Props) {
                             message.intent === "calculate"
                                 ? "text-amber-400 border-amber-400/30 bg-amber-400/10"
                                 : message.intent === "quote"
-                                ? "text-blue-400 border-blue-400/30 bg-blue-400/10"
-                                : "text-emerald-400 border-emerald-400/30 bg-emerald-400/10"
+                                    ? "text-blue-400 border-blue-400/30 bg-blue-400/10"
+                                    : "text-emerald-400 border-emerald-400/30 bg-emerald-400/10"
                         )}
                     >
                         {message.intent}

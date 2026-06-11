@@ -1,13 +1,11 @@
 import logging
 from datetime import datetime
 from typing import List
+from app.config.settings import settings
 from app.schemas.chat import ChatMessage
 from app.services.retriever import get_graph_db
 
 logger = logging.getLogger(__name__)
-
-# Limit the number of messages to keep to avoid context window overflow
-MAX_HISTORY_MESSAGES = 10
 
 
 def _get_db():
@@ -21,15 +19,28 @@ def load_history(session_id: str) -> List[ChatMessage]:
     """
     db = _get_db()
     try:
-        result = db.query(
-            """
-            MATCH (:ChatSession {session_id: $session_id})-[:HAS_MESSAGE]->(m:Message)
-            RETURN m.role AS role, m.content AS content
-            ORDER BY m.timestamp ASC
-            LIMIT $limit
-            """,
-            {"session_id": session_id, "limit": MAX_HISTORY_MESSAGES},
-        )
+        if settings.HISTORY_MESSAGE_LIMIT > 0:
+            result = db.query(
+                """
+                MATCH (:ChatSession {session_id: $session_id})-[:HAS_MESSAGE]->(m:Message)
+                WITH m
+                ORDER BY m.timestamp DESC
+                LIMIT $limit
+                WITH m
+                ORDER BY m.timestamp ASC
+                RETURN m.role AS role, m.content AS content
+                """,
+                {"session_id": session_id, "limit": settings.HISTORY_MESSAGE_LIMIT},
+            )
+        else:
+            result = db.query(
+                """
+                MATCH (:ChatSession {session_id: $session_id})-[:HAS_MESSAGE]->(m:Message)
+                RETURN m.role AS role, m.content AS content
+                ORDER BY m.timestamp ASC
+                """,
+                {"session_id": session_id},
+            )
         messages = [ChatMessage(role=r["role"], content=r["content"]) for r in result]
         logger.debug(f"[Session] Loaded {len(messages)} messages for {session_id[:8]}")
         return messages

@@ -1,0 +1,36 @@
+{
+  "metadata": {
+    "version": "2026",
+    "price_list_name": "tuyen_truyen",
+    "regulation": "QĐ 413/QĐ-BPTTH",
+    "effective_date": "2026-01-01",
+    "unit": "VND/chương trình (sản xuất + phát sóng)",
+    "description": "Bảng giá hỗ trợ tuyên truyền — phóng sự, phim tài liệu"
+  },
+  "prices": {
+    "phong_su_THP_thuong_10p":   44000000,
+    "phong_su_THP_thuong_15p":   66000000,
+    "phong_su_THP_thuong_20p":   88000000,
+    "phong_su_THP_toi_10p":      50000000,
+    "phong_su_THP_toi_15p":      75000000,
+    "phong_su_THP_toi_20p":     100000000,
+    "phong_su_THP3_thuong_10p":  44000000,
+    "phong_su_THP3_thuong_15p":  66000000,
+    "phong_su_THP3_thuong_20p":  88000000,
+    "phong_su_THP3_toi_10p":     45000000,
+    "phong_su_THP3_toi_15p":     67500000,
+    "phong_su_THP3_toi_20p":     90000000,
+    "ptl_THP_thuong_15p":       156000000,
+    "ptl_THP_thuong_20p":       208000000,
+    "ptl_THP_thuong_30p":       312000000,
+    "ptl_THP_toi_15p":          165000000,
+    "ptl_THP_toi_20p":          220000000,
+    "ptl_THP_toi_30p":          330000000,
+    "ptl_THP3_thuong_15p":      156000000,
+    "ptl_THP3_thuong_20p":      208000000,
+    "ptl_THP3_thuong_30p":      312000000,
+    "ptl_THP3_toi_15p":         157500000,
+    "ptl_THP3_toi_20p":         210000000,
+    "ptl_THP3_toi_30p":         315000000
+  }
+}

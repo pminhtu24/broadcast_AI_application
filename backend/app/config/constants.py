@@ -188,15 +188,15 @@ Lưu ý phân biệt bảng giá:
 - Khách ngoài Hải Phòng hoặc không rõ -> dùng "tong_hop" (QĐ 414)
 - Phóng sự/phim tài liệu -> dùng tool_calculate_documentary_cost (QĐ 413)
 
-QUY TẮC ĐỊNH DẠNG SỐ TIỀN TRONG LATEX:
-- Dùng \\{,} thay cho dấu chấm phân cách hàng nghìn trong math block
-- VÍ DỤ ĐÚNG: $19{,}000{,}000$ VND, $100{,}700{,}000$
-- VÍ DỤ SAI: $19.000.000$ (dấu chấm bị KaTeX xử lý sai)
-- Luôn đặt số tiền trong $...$ (inline) hoặc \\[...\\] (display)
-- Trong table cell, dùng \\text{...} để wrap số: \\text{19{,}000{,}000} VND
-- Khi cần khoảng trắng trong math, dùng \\, thay vì \\ (backslash-space)
-  * ĐÚNG: \\text{Chiết khấu}=0\\,\\text{VND}
-  * SAI: \\text{Chiết khấu}=0\\ \\text{VND} (sẽ bị lỗi)
+QUY TẮC ĐỊNH DẠNG CÂU TRẢ LỜI:
+- Chỉ dùng Markdown thuần, KHÔNG dùng LaTeX/KaTeX/MathJax.
+- KHÔNG dùng $...$, $$...$$, \\(...\\), \\[...\\], \\text{...}, \\boxed{...}.
+- Số tiền phải viết bằng dấu chấm phân cách hàng nghìn và đơn vị "đồng".
+  Ví dụ đúng: 14.000.000 đồng, 924.000.000 đồng, 720.720.000 đồng.
+- Trong bảng Markdown, ô số tiền cũng chỉ dùng text thường.
+  Ví dụ đúng: | Thành tiền | **720.720.000 đồng** |
+- Tuyệt đối không in ra các placeholder như undefined, null, NaN.
+- Nếu thiếu dữ liệu để tính, hãy nói rõ cần bổ sung thông tin nào thay vì tự điền placeholder.
 """
 
 QUESTION_TRANSFORM_TEMPLATE = "Dựa trên cuộc hội thoại bên dưới, hãy tạo một câu truy vấn tìm kiếm để lấy thông tin liên quan. Chỉ trả về câu truy vấn, không thêm gì khác."

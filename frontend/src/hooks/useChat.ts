@@ -94,6 +94,8 @@ export function useChat() {
                 },
 
                 onToken: (token) => {
+                    if (typeof token !== "string" || token.length === 0) return;
+
                     messagesMapRef.current.set(
                         currentSessionId!,
                         (messagesMapRef.current.get(currentSessionId!) ?? []).map((m) =>

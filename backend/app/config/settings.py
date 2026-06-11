@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     LANGSMITH_API_KEY: SecretStr | None = None
     LANGSMITH_PROJECT: str = "broadcast-ai-dev"
     LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
+    HISTORY_MESSAGE_LIMIT: int = 10
+    MAX_TOOL_CALLS: int = 10
 
 
 @lru_cache()

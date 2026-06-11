@@ -9,7 +9,9 @@ from app.services.retriever import hybrid_retrieve, format_for_llm
 from app.services.llm import get_llm
 from app.services import session as session_service
 from app.services.tools import ALL_PRICING_TOOLS
+from app.services.response_sanitizer import sanitize_answer_markup
 from app.config.constants import CALCULATE_WITH_TOOLS_PROMPT
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +153,7 @@ def calculate_node(state: ChatState) -> dict[str, Any]:
         tool_call_count = 0
         while response.tool_calls:
             tool_call_count += 1
-            if tool_call_count > 10:
+            if tool_call_count > settings.MAX_TOOL_CALLS:
                 # Tránh infinite loop
                 logger.warning("[Calculate] Too many tool calls, stopping")
                 break
@@ -193,7 +195,7 @@ def calculate_node(state: ChatState) -> dict[str, Any]:
             # LLM continues with tool results
             response = llm_with_tools.invoke(llm_messages)
  
-        answer = str(response.content)
+        answer = sanitize_answer_markup(str(response.content))
         logger.info(
             f"[Calculate] Done | {tool_call_count} tool calls | "
             f"{len(answer)} chars | history={len(history)} msgs"
@@ -236,7 +238,7 @@ def generate_node(state: ChatState) -> dict[str, Any]:
             system_prompt, user_message, history
         )
         response = llm.invoke(llm_messages)
-        answer = str(response.content)
+        answer = sanitize_answer_markup(str(response.content))
         logger.info(
             f"[Generate] {len(answer)} chars | intent={intent} | history={len(history)} msgs"
         )
@@ -267,8 +269,10 @@ async def generate_stream(
     try:
         async for chunk in llm.astream(llm_messages):
             token = chunk.content
-            if token:
+            if isinstance(token, str) and token:
                 yield token
+            elif token:
+                yield str(token)
     except Exception as e:
         logger.error(f"[GenerateStream] Error: {e}")
         yield f"\n\n[Lỗi khi tạo câu trả lời: {e}]"
@@ -295,8 +299,10 @@ async def generate_stream_and_collect(
     try:
         async for chunk in llm.astream(llm_messages):
             token = chunk.content
-            if token:
+            if isinstance(token, str) and token:
                 yield ("token", token)
+            elif token:
+                yield ("token", str(token))
     except Exception as e:
         logger.error(f"[GenerateStream] Error: {e}")
         yield ("token", f"\n\n[Lỗi khi tạo câu trả lời: {e}]")
@@ -532,7 +538,7 @@ def quote_node(state: ChatState) -> dict[str, Any]:
                 logger.warning(f"[Quote] Failed to parse JSON: {json_str[:100]}")
 
         return {
-            "answer": answer,
+            "answer": sanitize_answer_markup(answer),
             "customer_info": customer_info,
             "quote_items": quote_items,
             "quote_status": quote_status or ("awaiting_info" if not customer_info else "awaiting_items"),
@@ -574,5 +580,7 @@ def format_response_node(state: ChatState) -> dict[str, Any]:
 
     if not answer:
         answer = f"Đã xảy ra lỗi: {error}" if error else "Xin lỗi, đã có lỗi xảy ra."
+    else:
+        answer = sanitize_answer_markup(str(answer))
 
     return {"answer": answer, "citations": citations}

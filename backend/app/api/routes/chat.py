@@ -13,6 +13,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["chat"])
 
 
+def _answer_from_result(result: dict, default: str) -> str:
+    answer = result.get("answer")
+    if isinstance(answer, str) and answer.strip():
+        return answer
+
+    error = result.get("error")
+    if error:
+        return f"Đã xảy ra lỗi: {error}"
+
+    return default
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
@@ -157,7 +169,10 @@ async def chat_stream(request: ChatRequest):
                     "intent": intent,
                     "session_id": session_id,
                 })
-                full_answer = result.get("answer", "")
+                full_answer = _answer_from_result(
+                    result,
+                    "Xin lỗi, tôi chưa tính được chi phí cho yêu cầu này.",
+                )
                 yield _sse({"type": "token", "content": full_answer})
             elif intent == "quote":
                 from app.graph.nodes import quote_node
@@ -168,7 +183,10 @@ async def chat_stream(request: ChatRequest):
                     "intent": intent,
                     "session_id": session_id,
                 })
-                full_answer = result.get("answer", "")
+                full_answer = _answer_from_result(
+                    result,
+                    "Xin lỗi, tôi chưa tạo được báo giá cho yêu cầu này.",
+                )
                 yield _sse({"type": "token", "content": full_answer})
 
                 quote_file_path = result.get("quote_file_path")
@@ -264,4 +282,8 @@ async def get_session_history(session_id: str):
  
 def _sse(data: dict) -> str:
     """Format a standard SSE event."""
+    if data.get("type") == "token" and not isinstance(data.get("content"), str):
+        content = data.get("content")
+        data = {**data, "content": "" if content is None else str(content)}
+
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
